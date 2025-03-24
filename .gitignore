@@ -9,6 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
+# files
 *.pdf
+*.zip
 *.bak*
 attempt_*
+
+# env variables
+.env
