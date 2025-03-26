@@ -5,6 +5,7 @@ from .clientapi.identify_client_api_version_for_venue import identify_client_api
 from .clientapi.OpenReviewClients import OpenReviewClients
 from .note.download_pdf_for_note import download_pdf_for_note
 from .note.download_supplementary_material_for_note import download_supplementary_material_for_note
+from .note.save_note import save_note
 from .note.simplify_note_content import simplify_note_content
 from .submissions.get_all_venues_name import get_all_venues_name
 from .submissions.get_submissions_of_venue_apiv1 import (
@@ -21,6 +22,7 @@ from .submissions.get_submissions_of_venue_apiv2 import (
     get_simple_all_the_submissions_notes_of_venue_apiv2,
     get_withdrawn_submissions_of_venue_apiv2,
 )
+from .submissions.save_venue import save_venue
 
 __all__ = [
     "identify_client_api_version_for_venue",
@@ -30,6 +32,7 @@ __all__ = [
     "get_profile_by_id",
     "download_pdf_for_note",
     "download_supplementary_material_for_note",
+    "save_note",
     "simplify_note_content",
     "get_all_venues_name",
     "get_accepted_submissions_for_double_blind_venues_apiv1",
@@ -42,4 +45,5 @@ __all__ = [
     "get_desk_rejected_submissions_of_venue_apiv2",
     "get_simple_all_the_submissions_notes_of_venue_apiv2",
     "get_withdrawn_submissions_of_venue_apiv2",
+    "save_venue",
 ]

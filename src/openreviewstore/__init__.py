@@ -1,1 +1,3 @@
-__version__ = "0.0.1"
+from openreviewstore.setup_logger import setup_logger
+
+setup_logger()

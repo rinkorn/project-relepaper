@@ -15,7 +15,7 @@ from .constants import PROJECT_PATH
 # CRITITCAL:50 A serious error, indicating that the program itself may be unable to continue running.
 """
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 
 def setup_logger(name=__package__, level=LOG_LEVEL):
@@ -23,7 +23,7 @@ def setup_logger(name=__package__, level=LOG_LEVEL):
     logger.setLevel(level)
 
     stream_formatter = logging.Formatter(
-        "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
+        ">>>> {asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
         style="{",
     )
     stream_handler = logging.StreamHandler(stream=sys.stdout)
@@ -31,7 +31,7 @@ def setup_logger(name=__package__, level=LOG_LEVEL):
     stream_handler.setFormatter(stream_formatter)
 
     file_formatter = logging.Formatter(
-        "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
+        ">>>> {asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
         style="{",
     )
     file_handler_dir = PROJECT_PATH / Path(f"logs/{__package__}.log")
