@@ -25,3 +25,9 @@ lint = [
 test = [
     "pytest>=8.3.5",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+docstring-code-line-length = 120

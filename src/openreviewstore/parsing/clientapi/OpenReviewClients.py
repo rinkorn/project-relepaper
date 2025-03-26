@@ -29,31 +29,37 @@ class OpenReviewClients:
             password: Пароль для авторизации (опционально)
         """
         self._clients = {}
+        self.v1_baseurl = v1_baseurl
+        self.v2_baseurl = v2_baseurl
+        self.username = username
+        self.password = password
+        self._init_clients()
 
+    def _init_clients(self):
         # Инициализация клиентов с авторизацией или без
-        if username and password:
+        if self.username and self.password:
             self._clients["v1"] = openreview.Client(
-                baseurl=v1_baseurl,
-                username=username,
-                password=password,
+                baseurl=self.v1_baseurl,
+                username=self.username,
+                password=self.password,
             )
             self._clients["v2"] = openreview.api.OpenReviewClient(
-                baseurl=v2_baseurl,
-                username=username,
-                password=password,
+                baseurl=self.v2_baseurl,
+                username=self.username,
+                password=self.password,
             )
             logger.info("Инициализированы клиенты API v1 и v2 с авторизацией")
         else:
-            self._clients["v1"] = openreview.Client(baseurl=v1_baseurl)
-            self._clients["v2"] = openreview.api.OpenReviewClient(baseurl=v2_baseurl)
+            self._clients["v1"] = openreview.Client(baseurl=self.v1_baseurl)
+            self._clients["v2"] = openreview.api.OpenReviewClient(baseurl=self.v2_baseurl)
             logger.info("Инициализированы клиенты API v1 и v2 без авторизации")
 
-    def get_client(self, version: str):
+    def get_client(self, api_version: str):
         """
         Получает клиент API по указанной версии.
 
         Args:
-            version: Версия API ("v1" или "v2")
+            api_version: Версия API ("v1" или "v2")
 
         Returns:
             Клиент API соответствующей версии
@@ -61,6 +67,11 @@ class OpenReviewClients:
         Raises:
             ValueError: Если указана неверная версия API
         """
-        if version not in self._clients:
-            raise ValueError(f"Неверная версия API: {version}. Доступные версии: {list(self._clients.keys())}")
-        return self._clients[version]
+        if api_version not in self._clients:
+            raise ValueError(f"Неверная версия API: {api_version}. Доступные версии: {list(self._clients.keys())}")
+        return self._clients[api_version]
+
+
+if __name__ == "__main__":
+    clients = OpenReviewClients()
+    client = clients.get_client("v2")

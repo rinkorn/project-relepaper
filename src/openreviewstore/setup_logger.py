@@ -18,12 +18,12 @@ from .constants import PROJECT_PATH
 LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
 
-def init_logger(name=__package__, level=LOG_LEVEL):
+def setup_logger(name=__package__, level=LOG_LEVEL):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
     stream_formatter = logging.Formatter(
-        "{asctime} - {levelname} - {name} - {module}:{funcName}:{lineno} - {message}",
+        "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
         style="{",
     )
     stream_handler = logging.StreamHandler(stream=sys.stdout)
@@ -31,10 +31,10 @@ def init_logger(name=__package__, level=LOG_LEVEL):
     stream_handler.setFormatter(stream_formatter)
 
     file_formatter = logging.Formatter(
-        "{asctime} - {levelname} - {name} - {module}:{funcName}:{lineno} - {message}",
+        "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
         style="{",
     )
-    file_handler_dir = PROJECT_PATH / Path("logs/llmforcad.log")
+    file_handler_dir = PROJECT_PATH / Path(f"logs/{__package__}.log")
     file_handler_dir.parent.mkdir(parents=True, exist_ok=True)
     file_handler = logging.handlers.RotatingFileHandler(
         file_handler_dir,
@@ -46,4 +46,4 @@ def init_logger(name=__package__, level=LOG_LEVEL):
 
     logger.addHandler(stream_handler)
     logger.addHandler(file_handler)
-    logger.debug("Logger was initialized")
+    logger.debug("The logger has been configured.")
