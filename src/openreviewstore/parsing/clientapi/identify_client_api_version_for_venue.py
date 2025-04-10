@@ -21,7 +21,6 @@ def identify_client_api_version_for_venue(clients: OpenReviewClients, venue_id: 
     except OpenReviewException as e:
         logger.error(f"Ошибка при проверке API_V2 для {venue_id}: {str(e)}")
 
-
     if api_version is not None:
         return api_version
 

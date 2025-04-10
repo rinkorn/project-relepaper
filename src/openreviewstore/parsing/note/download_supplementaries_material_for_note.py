@@ -6,8 +6,10 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 
 
-def download_pdf_for_note(note, venue_path, client, api_version, is_overwrite=False) -> Dict[str, Any]:
-    """Скачивает PDF для заметки OpenReview.
+def download_supplementaries_material_for_note(
+    note, venue_path, client, api_version, is_overwrite=False
+) -> Dict[str, Any]:
+    """Скачивает дополнительные материалы для заметки OpenReview.
 
     Args:
         note: Объект заметки OpenReview
@@ -35,46 +37,45 @@ def download_pdf_for_note(note, venue_path, client, api_version, is_overwrite=Fa
     }
 
     try:
-        pdf_available_path = None
+        supmat_available_path = None
 
         if api_version == "v1" and isinstance(note.content, dict):
-            pdf_available_path = note.content.get("pdf", "")
+            supmat_available_path = note.content.get("supplementary_material", "")
         elif api_version == "v2" and isinstance(note.content, dict):
-            pdf_available_path = note.content.get("pdf", {}).get("value", "")
+            supmat_available_path = note.content.get("supplementary_material", {}).get("value", "")
 
-        if not pdf_available_path:
-            result["error"] = True
-            result["error_reason"] = "PDF путь не указан в заметке"
+        if not supmat_available_path:
+            result["error_reason"] = "Путь к дополнительным материалам не указан в заметке"
             return result
 
-        pdf_path = venue_path / Path(pdf_available_path).relative_to("/")
-        result["path"] = str(pdf_path)
+        supmat_path = venue_path / Path(supmat_available_path).relative_to("/")
+        result["path"] = str(supmat_path)
 
         # Проверка существования файла
-        if pdf_path.is_file():
+        if supmat_path.is_file():
             result["existed"] = True
             # Нужно ли перезаписать существующий файл
             if not is_overwrite:
                 return result
             result["overwritten"] = True
 
-        pdf_path.parent.mkdir(parents=True, exist_ok=True)
+        supmat_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            pdf_binary = client.get_pdf(id=note.id)
-            with open(pdf_path, "wb") as file:
-                file.write(pdf_binary)
+            supmat_binary = client.get_attachment(id=note.id, field_name="supplementary_material")
+            with open(supmat_path, "wb") as file:
+                file.write(supmat_binary)
 
             result["success"] = True
-            logger.info(f"pdf_downloaded: {pdf_path}")
+            logger.info(f"supmat_downloaded: {supmat_path}")
         except Exception as e:
             result["error"] = True
-            result["error_reason"] = f"Ошибка при скачивании PDF: {str(e)}"
-            logger.error(f"Ошибка при скачивании PDF для заметки {note.id}: {str(e)}")
+            result["error_reason"] = f"Ошибка при скачивании доп. материалов: {str(e)}"
+            logger.error(f"Ошибка при скачивании дополнительных материалов для заметки {note.id}: {str(e)}")
 
     except Exception as e:
         result["error"] = True
         result["error_reason"] = f"Общая ошибка: {str(e)}"
-        logger.error(f"Общая ошибка при скачивании PDF для заметки {note.id}: {str(e)}")
+        logger.error(f"Общая ошибка при скачивании дополнительных материалов для заметки {note.id}: {str(e)}")
 
     return result

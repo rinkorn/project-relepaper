@@ -13,7 +13,7 @@ def get_all_the_submissions_notes_of_venue_apiv2(client, venue_id):
             invitation=f"{venue_id}/-/{submission_name}",
             details="replies",
         )
-    except Exception as e:
+    except Exception:
         submissions = None
         logger.error("Error get all notes.")
     return submissions
@@ -26,7 +26,7 @@ def get_simple_all_the_submissions_notes_of_venue_apiv2(client, venue_id):
             invitation=f"{venue_id}/-/Submission",
             details="replies",
         )
-    except Exception as e:
+    except Exception:
         submissions = None
         logger.error("Error get all notes.")
     return submissions
@@ -88,11 +88,13 @@ if __name__ == "__main__":
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 
+    # %%
+    from openreviewstore.parsing.clientapi.identify_client_api_version_for_venue import (
+        identify_client_api_version_for_venue,
+    )
+    from openreviewstore.parsing.clientapi.openreviewclients import OpenReviewClients
 
-# %%
-    from openreviewstore.parsing.clientapi import OpenReviewClients, identify_client_api_version_for_venue
-
-    # clients = OpenReviewClients()
+    clients = OpenReviewClients()
     venues = [
         # "NeurIPS.cc/2022/Conference",  # API1
         # "NeurIPS.cc/2024/Conference",  # API2

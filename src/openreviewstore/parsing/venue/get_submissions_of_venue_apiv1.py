@@ -41,7 +41,9 @@ def get_accepted_submissions_for_double_blind_venues_apiv1(client, venue_id):
     all_decision_notes = []
     for submission_id, submission in blind_notes.items():
         all_decision_notes = all_decision_notes + [
-            reply for reply in submission.details["replies"] if reply["invitation"].endswith("Decision")
+            reply
+            for reply in submission.details["replies"]
+            if reply["invitation"].endswith("Decision")
             # reply for reply in submission.details["directReplies"] if reply["invitation"].endswith("Decision")
         ]
     accepted_submissions = []
@@ -77,9 +79,12 @@ def get_accepted_submissions_for_single_blind_venues_apiv1(client, venue_id):
 # %%
 if __name__ == "__main__":
     import openreview
-    from openreviewstore.parsing.clientapi import OpenReviewClients, identify_client_api_version_for_venue
+    from openreviewstore.parsing.clientapi.identify_client_api_version_for_venue import (
+        identify_client_api_version_for_venue,
+    )
+    from openreviewstore.parsing.clientapi.openreviewclients import OpenReviewClients
 
-    # clients = OpenReviewClients()
+    clients = OpenReviewClients()
     venues = [
         # "ICLR.cc/2013/conference",  # API1
         "NeurIPS.cc/2020/Conference",
