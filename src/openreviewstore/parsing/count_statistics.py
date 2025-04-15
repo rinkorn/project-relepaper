@@ -239,7 +239,7 @@ def cli():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # store_path = Path("/home/rinkorn/space/prog/python/sber/project-openreviewstore/data/store/")
-    store_path = Path("/home/rinkorn/space/prog/python/sber/store/")
+    store_path = Path("/data/data.sets/openreviewstore/")
     p_list = main(store_path)
     venue_files = p_list[0]
     notes_files = p_list[1]

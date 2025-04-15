@@ -21,6 +21,10 @@ dev = [
     "jupyter>=1.1.1",
     "pre-commit>=4.2.0",
 ]
+googlescholar = [
+    "scholarly[tor]>=1.7.11",
+    "scrape-google-scholar-py>=0.3.4",
+]
 lint = [
     "ruff>=0.11.2",
 ]
