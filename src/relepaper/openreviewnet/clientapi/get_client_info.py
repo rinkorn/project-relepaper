@@ -4,8 +4,8 @@ from typing import Dict
 
 import openreview
 
-from openreviewstore.parsing.clientapi.get_current_user_info import get_current_user_info
-from openreviewstore.parsing.clientapi.get_profile_by_id import get_profile_by_id
+from relepaper.openreviewnet.clientapi.get_current_user_info import get_current_user_info
+from relepaper.openreviewnet.clientapi.get_profile_by_id import get_profile_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def get_client_info(client) -> Dict[str, str]:
 
 
 if __name__ == "__main__":
-    from openreviewstore.parsing.clientapi import OpenReviewClients
+    from relepaper.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
 
     clients = OpenReviewClients()
     client = clients.get_client("v2")

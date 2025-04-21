@@ -6,8 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List
 
-from openreviewstore.constants import PROJECT_PATH
-from openreviewstore.parsing import (
+from relepaper.constants import PROJECT_PATH
+from relepaper.openreviewnet import (
     OpenReviewClients,
     get_all_venues_name,
     get_notes_for_venue,
@@ -216,31 +216,31 @@ def cli():
     )
 
 
-# if __name__ == "__main__":
-#     cli()
-
-
 if __name__ == "__main__":
-    testing_args = argparse.Namespace(
-        venue_ids=[
-            # "NeurIPS.cc/2020/Conference",  # None
-            # "ICLR.cc/2013/conference",  # API1
-            "ICLR.cc/2023/Workshop/Physics4ML",  # API1
-            # "conceptuccino.uni-osnabrueck.de/CARLA/2020/Workshop",  # API1
-            # "NeurIPS.cc/2022/Conference",  # API1
-            # "NeurIPS.cc/2024/Conference",  # API2
-            # "corl.org/2024/Workshop/MAPoDeL",  # API2
-            # "ICLR.cc/2025/Workshop/SynthData",  # API2
-            # "ISMIR.net/2018/WoRMS",  # API1
-        ],
-        store_path=PROJECT_PATH / "data/test2_store/",
-        is_save_notes=True,
-        is_save_pdfs=True,
-        is_save_supplementaries=False,
-        is_overwrite_venue=True,
-        is_overwrite_notes=False,
-        is_overwrite_pdfs=False,
-        is_overwrite_supplementaries=False,
-        max_workers=5,
-    )
-    download_all(**vars(testing_args))
+    cli()
+
+
+# if __name__ == "__main__":
+#     testing_args = argparse.Namespace(
+#         venue_ids=[
+#             # "NeurIPS.cc/2020/Conference",  # None
+#             # "ICLR.cc/2013/conference",  # API1
+#             "ICLR.cc/2023/Workshop/Physics4ML",  # API1
+#             # "conceptuccino.uni-osnabrueck.de/CARLA/2020/Workshop",  # API1
+#             # "NeurIPS.cc/2022/Conference",  # API1
+#             # "NeurIPS.cc/2024/Conference",  # API2
+#             # "corl.org/2024/Workshop/MAPoDeL",  # API2
+#             # "ICLR.cc/2025/Workshop/SynthData",  # API2
+#             # "ISMIR.net/2018/WoRMS",  # API1
+#         ],
+#         store_path=PROJECT_PATH / "data/test2_store/",
+#         is_save_notes=True,
+#         is_save_pdfs=True,
+#         is_save_supplementaries=False,
+#         is_overwrite_venue=True,
+#         is_overwrite_notes=False,
+#         is_overwrite_pdfs=False,
+#         is_overwrite_supplementaries=False,
+#         max_workers=5,
+#     )
+#     download_all(**vars(testing_args))

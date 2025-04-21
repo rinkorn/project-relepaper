@@ -2,9 +2,11 @@
 import logging
 from typing import Any, Dict
 
-from .download_pdf_for_note import download_pdf_for_note
-from .download_supplementaries_material_for_note import download_supplementaries_material_for_note
-from .save_note import save_note
+from relepaper.openreviewnet.note.download_pdf_for_note import download_pdf_for_note
+from relepaper.openreviewnet.note.download_supplementaries_material_for_note import (
+    download_supplementaries_material_for_note,
+)
+from relepaper.openreviewnet.note.save_note import save_note
 
 logger = logging.getLogger(__name__)
 
