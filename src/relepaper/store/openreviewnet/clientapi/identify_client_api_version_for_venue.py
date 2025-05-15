@@ -3,7 +3,7 @@ import logging
 
 from openreview import OpenReviewException
 
-from relepaper.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
+from relepaper.store.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def identify_client_api_version_for_venue(clients: OpenReviewClients, venue_id: 
 
 # %%
 if __name__ == "__main__":
-    from asearcher.openreviewnet.note.simplify_note_content import simplify_note_content
+    from relepaper.store.openreviewnet.note.simplify_note_content import simplify_note_content
 
     clients = OpenReviewClients()
 

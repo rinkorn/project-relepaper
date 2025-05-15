@@ -1,13 +1,13 @@
 import logging
 from typing import Any, List, Optional
 
-from relepaper.openreviewnet.venue.get_submissions_of_venue_apiv1 import (
+from relepaper.store.openreviewnet.venue.get_submissions_of_venue_apiv1 import (
     get_accepted_submissions_for_double_blind_venues_apiv1,
     get_accepted_submissions_for_single_blind_venues_apiv1,
     get_active_submissions_for_a_double_blind_venue_apiv1,
     get_all_submissions_for_a_double_blind_venue_apiv1,
 )
-from relepaper.openreviewnet.venue.get_submissions_of_venue_apiv2 import (
+from relepaper.store.openreviewnet.venue.get_submissions_of_venue_apiv2 import (
     get_accepted_submissions_of_venue_apiv2,
     get_active_submissions_under_review_of_venue_apiv2,
     get_all_the_submissions_notes_of_venue_apiv2,

@@ -89,10 +89,10 @@ if __name__ == "__main__":
     logger.addHandler(stream_handler)
 
     # %%
-    from relepaper.openreviewnet.clientapi.identify_client_api_version_for_venue import (
+    from relepaper.search.openreviewnet.clientapi.identify_client_api_version_for_venue import (
         identify_client_api_version_for_venue,
     )
-    from relepaper.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
+    from relepaper.search.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
 
     clients = OpenReviewClients()
     venues = [

@@ -12,7 +12,20 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "fake-headers>=1.0.2",
+    "fake-useragent>=2.2.0",
+    "langchain>=0.3.23",
+    "langchain-community>=0.3.21",
+    "langchain-experimental>=0.3.4",
+    "langchain-ollama>=0.3.2",
+    "langchain-openai>=0.3.14",
+    "langgraph>=0.4.3",
+    "matplotlib>=3.10.1",
+    "numexpr>=2.10.2",
     "openreview-py>=1.47.2",
+    "pyalex>=0.18",
+    "selenium>=4.31.0",
+    "selenium-stealth>=1.0.6",
 ]
 
 [dependency-groups]
@@ -20,9 +33,14 @@ dev = [
     "ipykernel>=6.29.5",
     "jupyter>=1.1.1",
     "pre-commit>=4.2.0",
+    "ruff>=0.11.2",
 ]
 lint = [
     "ruff>=0.11.2",
+]
+search = [
+    "openalexapi>=0.0.1a0",
+    "scholarly[tor]>=1.7.11",
 ]
 test = [
     "pytest>=8.3.5",

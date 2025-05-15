@@ -80,10 +80,10 @@ def get_accepted_submissions_for_single_blind_venues_apiv1(client, venue_id):
 if __name__ == "__main__":
     import openreview
 
-    from relepaper.openreviewnet.clientapi.identify_client_api_version_for_venue import (
+    from relepaper.store.openreviewnet.clientapi.identify_client_api_version_for_venue import (
         identify_client_api_version_for_venue,
     )
-    from relepaper.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
+    from relepaper.store.openreviewnet.clientapi.OpenReviewClients import OpenReviewClients
 
     clients = OpenReviewClients()
     venues = [

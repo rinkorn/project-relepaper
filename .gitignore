@@ -23,3 +23,10 @@ try_*
 
 # env variables
 .env
+.env.template
+
+# plots
+*.png
+*.pdf
+*.svg
+*.eps

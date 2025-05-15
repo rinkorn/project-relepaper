@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from .constants import PROJECT_PATH
+from .config import PROJECT_PATH
 
 """
 # NOTSET:0

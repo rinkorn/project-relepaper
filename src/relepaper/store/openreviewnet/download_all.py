@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 
 from relepaper.constants import PROJECT_PATH
-from relepaper.openreviewnet import (
+from relepaper.store.openreviewnet import (
     OpenReviewClients,
     get_all_venues_name,
     get_notes_for_venue,
