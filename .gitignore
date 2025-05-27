@@ -13,6 +13,8 @@ wheels/
 # dirs
 data/
 logs/
+notebooks/
+session/
 
 # files
 *.pdf
@@ -22,11 +24,17 @@ attempt_*
 try_*
 
 # env variables
-.env
 .env.template
+.env.secret
+.env.local
 
 # plots
 *.png
 *.pdf
 *.svg
 *.eps
+
+# cursor
+.cursor/
+.cursorrules
+.cursorignore
