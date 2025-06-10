@@ -26,7 +26,10 @@ dependencies = [
     "matplotlib>=3.10.1",
     "numexpr>=2.10.2",
     "openreview-py>=1.47.2",
+    "pdfminer-six>=20250506",
     "pyalex>=0.18",
+    "pymupdf>=1.26.0",
+    "pypst>=0.6.1",
     "selenium>=4.31.0",
     "selenium-stealth>=1.0.6",
 ]

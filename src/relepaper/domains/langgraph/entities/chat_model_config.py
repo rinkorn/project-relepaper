@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 @dataclass
 class ChatModelConfig:
-    """Конфигурация чат-модели."""
+    """Chat model configuration."""
 
     platform: str
     model_name: str

@@ -12,10 +12,23 @@ class PDFDownloadStrategy(Enum):
 
 @dataclass
 class OpenAlexPDF:
-    url: str = ""
-    dirname: Path = Path.cwd()
+    url: str | None = None
+    dirname: Path | None = None
     filename: str | None = None
-    strategy: PDFDownloadStrategy = PDFDownloadStrategy.NONE
+    strategy: PDFDownloadStrategy | None = None
+
+    def __bool__(self) -> bool:
+        return bool(self.url)
+
+    def __post_init__(self):
+        if self.url is None:
+            self.url = ""
+        if self.dirname is None:
+            self.dirname = Path.cwd()
+        if self.filename is None:
+            self.filename = ""
+        if self.strategy is None:
+            self.strategy = PDFDownloadStrategy.NONE
 
     @property
     def is_downloaded(self) -> bool:
@@ -28,3 +41,9 @@ class OpenAlexPDF:
         if self.filename is not None and isinstance(self.filename, str):
             return (self.dirname / self.filename).is_file()
         return False
+
+    @property
+    def file_path(self) -> Path:
+        if self.filename is not None and isinstance(self.filename, str):
+            return self.dirname / self.filename
+        return Path.cwd()

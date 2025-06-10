@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 @dataclass
 class ChatModelSettings:
-    """Настройки для чат-модели."""
+    """Chat model settings."""
 
     platform: str
     model_name: str
@@ -17,7 +17,7 @@ class ChatModelSettings:
 
 @dataclass
 class OllamaSettings:
-    """Настройки для Ollama."""
+    """Ollama settings."""
 
     model: str
     temperature: float = 0.0
@@ -27,7 +27,7 @@ class OllamaSettings:
 
 @dataclass
 class GigachatSettings:
-    """Настройки для Gigachat."""
+    """Gigachat settings."""
 
     credentials: str
     scope: str = "GIGACHAT_API_PERS"
@@ -36,7 +36,7 @@ class GigachatSettings:
 
 @dataclass
 class LMStudioSettings:
-    """Настройки для LMStudio."""
+    """LMStudio settings."""
 
     base_url: str = "http://localhost:7007/v1"
     api_key: str = "not_needed"
@@ -46,12 +46,12 @@ class LMStudioSettings:
 
 @dataclass
 class AppSettings:
-    """Основные настройки приложения."""
+    """Application settings."""
 
     project_path: Path
-    log_dir: str = "logs"
+    log_dir: Path = Path("logs")
 
-    # Настройки чат-модели
+    # Chat model settings
     chat_model: ChatModelSettings = field(
         default_factory=lambda: ChatModelSettings(
             platform=os.getenv("CHAT_MODEL_PLATFORM", "ollama"),
@@ -61,7 +61,7 @@ class AppSettings:
         )
     )
 
-    # Настройки для разных платформ
+    # Platform settings
     ollama: OllamaSettings = field(
         default_factory=lambda: OllamaSettings(
             model=os.getenv("OLLAMA_MODEL", "qwen3:4b"),
@@ -90,7 +90,7 @@ class AppSettings:
 
 
 def load_settings() -> AppSettings:
-    """Загружает настройки приложения."""
+    """Load application settings."""
     _default_project_path = Path(__file__).resolve().parents[3]
     project_path = Path(os.getenv("PROJECT_PATH", _default_project_path))
 

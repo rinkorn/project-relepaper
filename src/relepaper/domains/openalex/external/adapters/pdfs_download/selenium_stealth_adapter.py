@@ -9,13 +9,13 @@ import uuid
 from selenium import webdriver
 from selenium_stealth import stealth
 
-from relepaper.domains.openalex.entities.openalex_pdf import OpenAlexPDF, PDFDownloadStrategy
-from relepaper.domains.openalex.services.interfaces import IService
+from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
+from relepaper.domains.openalex.external.interfaces import IAdapter
 
 logger = logging.getLogger(__name__)
 
 
-class SeleniumStealthPDFDownloadService(IService):
+class SeleniumStealthPDFDownloadAdapter(IAdapter):
     def download(
         self,
         openalex_pdf: OpenAlexPDF,
@@ -98,7 +98,7 @@ class SeleniumStealthPDFDownloadService(IService):
 # %%
 if __name__ == "__main__":
     from relepaper.config.dev_settings import get_dev_settings
-    from relepaper.domains.openalex.entities.openalex_pdf import OpenAlexPDF
+    from relepaper.domains.openalex.entities.pdf import OpenAlexPDF
 
     openalex_pdf = OpenAlexPDF(
         # url="https://openreview.net/pdf?id=CsCtO2YFn9",  # strategy: requests
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         # filename="special_filename.pdf",
     )
 
-    service = SeleniumStealthPDFDownloadService()
+    service = SeleniumStealthPDFDownloadAdapter()
     service.download(openalex_pdf, 10)
     print(openalex_pdf.__dict__)
     print(openalex_pdf.is_downloaded)

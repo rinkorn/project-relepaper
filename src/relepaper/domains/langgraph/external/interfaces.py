@@ -5,20 +5,20 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 
 class IAdapter(abc.ABC):
-    """Базовый интерфейс для всех адаптеров."""
+    """Base interface for all adapters."""
 
     pass
 
 
 class IChatModelAdapter(abc.ABC):
-    """Интерфейс для адаптеров чат-моделей."""
+    """Interface for chat model adapters."""
 
     @abc.abstractmethod
     def create(self) -> BaseChatModel:
-        """Создает экземпляр чат-модели."""
+        """Create an instance of a chat model."""
         pass
 
     @abc.abstractmethod
     def get_config(self) -> Dict[str, Any]:
-        """Возвращает конфигурацию адаптера."""
+        """Return the configuration of the adapter."""
         pass

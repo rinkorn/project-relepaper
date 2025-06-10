@@ -1,5 +1,7 @@
-from abc import ABC
+import abc
 
 
-class IService(ABC):
+class IService(abc.ABC):
+    """Base interface for all services."""
+
     pass

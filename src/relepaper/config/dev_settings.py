@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def get_dev_settings() -> AppSettings:
-    """Возвращает настройки для разработки."""
+    """Return development settings."""
     return AppSettings(
         project_path=Path("/home/rinkorn/space/prog/python/sber/project-relepaper"),
         log_dir="logs",

@@ -4,13 +4,13 @@ import re
 import requests
 from fake_useragent import UserAgent
 
-from relepaper.domains.openalex.entities.openalex_pdf import OpenAlexPDF, PDFDownloadStrategy
-from relepaper.domains.openalex.services.interfaces import IService
+from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
+from relepaper.domains.openalex.external.interfaces import IAdapter
 
 logger = logging.getLogger(__name__)
 
 
-class RequestsPDFDownloadService(IService):
+class RequestsPDFDownloadAdapter(IAdapter):
     def download(
         self,
         openalex_pdf: OpenAlexPDF,
@@ -53,11 +53,11 @@ class RequestsPDFDownloadService(IService):
 # %%
 if __name__ == "__main__":
     from relepaper.config.dev_settings import get_dev_settings
-    from relepaper.domains.openalex.entities.openalex_pdf import OpenAlexPDF
+    from relepaper.domains.openalex.entities.pdf import OpenAlexPDF
 
     openalex_pdf = OpenAlexPDF(
         # url="https://openreview.net/pdf?id=CsCtO2YFn9",  # strategy: requests
-        # url="https://arxiv.org/pdf/1912.01603",  # strategy: requests
+        url="https://arxiv.org/pdf/1912.01603",  # strategy: requests
         # url="https://www.pnas.org/doi/pdf/10.1073/pnas.0902281106",  # strategy: selenium
         # url="http://www.mcponline.org/article/S153594762034295X/pdf",  # strategy: selenium
         # url="https://doi.org/10.48550/arxiv.1912.01603",  # strategy: not any
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         # filename="special_filename.pdf",
     )
 
-    service = RequestsPDFDownloadService()
+    service = RequestsPDFDownloadAdapter()
     service.download(openalex_pdf)
     print(openalex_pdf.__dict__)
     print(openalex_pdf.is_downloaded)
