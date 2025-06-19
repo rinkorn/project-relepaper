@@ -6,44 +6,48 @@ from pathlib import Path
 
 import pymupdf
 
-from relepaper.domains.pdf_exploring.interfaces import IAdapter
+from relepaper.domains.pdf_exploring.interfaces import IPDFAdapter
 
 
-class PyMuPDFAdapter(IAdapter):
-    def __init__(self, pdf_path: Path):
-        self.pdf_path = pdf_path
-
-    def extract_metadata(self) -> dict:
-        doc = pymupdf.open(self.pdf_path)
+class PyMuPDFAdapter(IPDFAdapter):
+    def extract_metadata(self, pdf_path: Path) -> dict:
+        doc = pymupdf.open(pdf_path)
         metadata = {**doc.metadata}
         metadata["page_count"] = doc.page_count
         return metadata
 
-    def extract_table_of_contents(self) -> dict:
-        doc = pymupdf.open(self.pdf_path)
-        toc = doc.get_toc()
-        return toc
+    def extract_table_of_contents(self, pdf_path: Path) -> dict:
+        doc = pymupdf.open(pdf_path)
+        table_of_contents = doc.get_toc()
+        return table_of_contents
 
-    def extract_page(self, page_number: int) -> dict:
-        doc = pymupdf.open(self.pdf_path)
-        page = doc[page_number]
-        return page
+    def extract_text(self, pdf_path: Path) -> str:
+        doc = pymupdf.open(pdf_path)
+        text = ""
+        for page_number in range(doc.page_count):
+            text += self.extract_page_text(pdf_path=pdf_path, page_number=page_number)
+        return text
 
-    def extract_page_text(self, page_number: int) -> str:
-        doc = pymupdf.open(self.pdf_path)
+    def extract_images(self, pdf_path: Path) -> list[bytes]:
+        doc = pymupdf.open(pdf_path)  # open a document
+        out_images = []
+        for page_index in range(len(doc)):  # iterate over pdf pages
+            out_images.extend(self.extract_page_images(pdf_path=pdf_path, page_number=page_index))
+        return out_images
+
+    # def extract_page(self, pdf_path: Path, page_number: int) -> dict:
+    #     doc = pymupdf.open(pdf_path)
+    #     page = doc[page_number]
+    #     return page
+
+    def extract_page_text(self, pdf_path: Path, page_number: int) -> str:
+        doc = pymupdf.open(pdf_path)
         page = doc[page_number]
         tp = page.get_textpage()
         return page.get_text(textpage=tp)
 
-    def extract_text(self) -> str:
-        doc = pymupdf.open(self.pdf_path)
-        text = ""
-        for page_number in range(doc.page_count):
-            text += self.extract_page_text(page_number)
-        return text
-
-    def extract_page_images(self, page_number: int) -> list[bytes]:
-        doc = pymupdf.open(self.pdf_path)
+    def extract_page_images(self, pdf_path: Path, page_number: int) -> list[bytes]:
+        doc = pymupdf.open(pdf_path)
         page = doc[page_number]
         images = page.get_images()
         out_images = []
@@ -53,13 +57,6 @@ class PyMuPDFAdapter(IAdapter):
             if pix.n - pix.alpha > 3:  # CMYK: convert to RGB first
                 pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
             out_images.append(pix.tobytes())
-        return out_images
-
-    def extract_images(self) -> list[bytes]:
-        doc = pymupdf.open(self.pdf_path)  # open a document
-        out_images = []
-        for page_index in range(len(doc)):  # iterate over pdf pages
-            out_images.extend(self.extract_page_images(page_index))
         return out_images
 
 
@@ -72,13 +69,19 @@ if __name__ == "__main__":
 
     tic = time.time()
 
-    adapter = PyMuPDFAdapter(pdf_path=pdf_path)
-    metadata = adapter.extract_metadata()
+    adapter = PyMuPDFAdapter()
+    metadata = adapter.extract_metadata(pdf_path=pdf_path)
     print(metadata)
-    text = adapter.extract_text()
+    text = adapter.extract_text(pdf_path=pdf_path)
     print(text)
-    images = adapter.extract_images()
-    print(len(images))
+    images = adapter.extract_images(pdf_path=pdf_path)
+    print(f"len(images): {len(images)}")
+    # page = adapter.extract_page(pdf_path=pdf_path, page_number=0)
+    # print(page)
+    page_text = adapter.extract_page_text(pdf_path=pdf_path, page_number=0)
+    print(page_text)
+    page_images = adapter.extract_page_images(pdf_path=pdf_path, page_number=1)
+    print(f"len(page_images): {len(page_images)}")
 
     toc = time.time()
     print(f"Time taken: {toc - tic} seconds")

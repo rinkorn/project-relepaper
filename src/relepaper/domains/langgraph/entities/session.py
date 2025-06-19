@@ -11,6 +11,9 @@ class Session(BaseModel):
     created_at: Annotated[datetime, "Created at"] = Field(default_factory=datetime.now)
     updated_at: Annotated[datetime, "Updated at"] = Field(default_factory=datetime.now)
 
+    def update_modification_time(self):
+        self.updated_at = datetime.now()
+
 
 # %%
 if __name__ == "__main__":
@@ -19,3 +22,9 @@ if __name__ == "__main__":
     print(session.id)
     print(session.created_at)
     print(session.updated_at)
+
+    session.update_modification_time()
+    print(session.updated_at)
+
+
+# %%

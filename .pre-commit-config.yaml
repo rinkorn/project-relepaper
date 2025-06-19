@@ -1,28 +1,19 @@
 default_language_version:
-  python: python3.12
-
+    python: python3.12
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.0
     hooks:
-      - id: trailing-whitespace
-        exclude_types: [text] # exclude golden files
-      - id: check-added-large-files
-        args: [--maxkb=1000]
-      - id: check-case-conflict
-      - id: check-merge-conflict
-      - id: check-json
-      - id: check-yaml
-        args: [--unsafe] # Instead of loading the files, simply parse them for syntax
-      - id: mixed-line-ending
-
-repos:
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.11.5
-  hooks:
-    - id: ruff # run the linter
-      types_or: [ python, pyi ]
-      args: [--fix, --exit-non-zero-on-fix, --show-fixes, --unsafe-fixes]
-    - id: ruff-format # run the formatter
-      types_or: [ python, pyi ]
-        
+    -   id: ruff
+        types_or:
+        - python
+        - pyi
+        args:
+        - --fix
+        - --exit-non-zero-on-fix
+        - --show-fixes
+        - --unsafe-fixes
+    -   id: ruff-format
+        types_or:
+        - python
+        - pyi

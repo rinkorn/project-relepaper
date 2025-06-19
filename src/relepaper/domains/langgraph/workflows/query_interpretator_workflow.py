@@ -23,21 +23,20 @@ __all__ = [
 ]
 
 # %%
-logger = logging.getLogger(__name__)
-
+# %%
 if __name__ == "__main__":
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(message)s")
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-    logger.info(":::START:::")
+    from relepaper.config.logger import setup_logger
 
-    # llm = ChatOllama(
-    #     model="qwen3:32b",
-    #     temperature=0.0,
-    #     max_tokens=10000,
-    # )
+    setup_logger(
+        name=__name__,
+        use_stream=True,
+        use_file=False,
+        stream_level=logging.INFO,
+        stream_formatter="__log__: %(message)s",
+        stream_style="%",
+    )
+else:
+    logger = logging.getLogger(__name__)
 
 
 # %%
@@ -669,7 +668,7 @@ class QueryReformulator2Node(IWorkflowNode):
                 "format_instructions": format_instructions,
             },
         )
-        print(prompt)
+        logger.info(prompt)
         chain = prompt | self._llm | output_parser
         response = chain.invoke(
             {
@@ -678,7 +677,7 @@ class QueryReformulator2Node(IWorkflowNode):
                 "reformulated_queries_quantity": reformulated_queries_quantity,
             }
         )
-        print(response)
+        logger.info(response)
         output = {
             "reformulated_queries": response["reformulated_queries"],
         }

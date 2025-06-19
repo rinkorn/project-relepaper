@@ -1,7 +1,6 @@
 # %%
 import logging
 import operator
-import os
 import uuid
 from pathlib import Path
 from pprint import pprint
@@ -9,7 +8,6 @@ from typing import Annotated, Sequence, TypedDict
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
@@ -27,6 +25,10 @@ from relepaper.domains.langgraph.workflows.relevance_evaluator import (
     RelevanceEvaluatorState,
     RelevanceEvaluatorWorkflowBuilder,
 )
+from relepaper.domains.langgraph.workflows.relevance_score_manager import (
+    RelevanceScoreManagerState,
+    RelevanceScoreManagerWorkflowBuilder,
+)
 from relepaper.domains.langgraph.workflows.utils import display_graph
 from relepaper.domains.openalex.entities.pdf import PDFDownloadStrategy
 from relepaper.domains.openalex.external.adapters.works_search.factory import (
@@ -39,7 +41,15 @@ from relepaper.domains.openalex.services.download_service import OpenAlexPdfDown
 from relepaper.domains.openalex.services.works_save_service import OpenAlexWorksSaveService
 from relepaper.domains.openalex.services.works_search_service import OpenAlexWorksSearchService
 
+# %%
 logger = logging.getLogger(__name__)
+
+if __name__ == "__main__":
+    logger.setLevel(logging.DEBUG)
+    stream_formatter = logging.Formatter("__log__: %(message)s")
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(stream_formatter)
+    logger.addHandler(stream_handler)
 
 
 # %%
@@ -49,6 +59,7 @@ class GeneralWorkflowState(TypedDict):
     query_interpretator_state: QueryInterpretatorState
     openalex_download_state: OpenAlexDownloadState
     relevance_evaluator_state: RelevanceEvaluatorState
+    relevance_score_manager_state: RelevanceScoreManagerState
 
 
 # %%
@@ -137,7 +148,7 @@ class OpenAlexDownloadNode(IWorkflowNode):
         display_graph(self._workflow)
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
-        print(":::CALL_OPENALEX_DOWNLOADER:::")
+        logger.info(":::CALL_OPENALEX_DOWNLOADER:::")
         state_input = state["openalex_download_state"]
         state_input["session"] = state["session"]
         state_input["reformulated_queries"] = state["query_interpretator_state"]["reformulated_queries"]
@@ -173,16 +184,54 @@ class RelevanceEvaluatorNode(IWorkflowNode):
         display_graph(self._workflow)
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
-        print(":::CALL_RELEVANCE_EVALUATOR:::")
+        logger.info(":::CALL_RELEVANCE_EVALUATOR:::")
         state_input = state["relevance_evaluator_state"]
         state_input["session"] = state["session"]
+        state_input["user_query"] = state["query_interpretator_state"]["user_query"]
+        state_input["works"] = state["openalex_download_state"]["works"]
         state_input["pdfs"] = state["openalex_download_state"]["pdfs"]
+
+        logger.info("|" * 100)
+        state_output = self._workflow.invoke(input=state_input)
+
+        for pdf, extracted_metadata, score in zip(
+            state_output["pdfs"], state_output["pdfs_extracted_metadata"], state_output["relevance_scores"]
+        ):
+            logger.info("-" * 100)
+            logger.info(f"User query: {state_input['user_query']}")
+            logger.info(f"Title: {extracted_metadata.get('extracted_title', '')}")
+            logger.info(f"PDF: {pdf.filename}\n\tscore: {score}")
+
+        output = {
+            "relevance_evaluator_state": state_output,
+        }
+        return output
+
+
+# %%
+class RelevanceScoreManagerNode(IWorkflowNode):
+    def __init__(self, llm: BaseChatModel, max_concurrency: int = 2, max_retries: int = 5):
+        self._workflow = RelevanceScoreManagerWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
+        self._config = {
+            "configurable": {
+                "max_concurrency": max_concurrency,
+                "max_retries": max_retries,
+                "thread_id": uuid.uuid4().hex,
+            },
+        }
+        display_graph(self._workflow)
+
+    def __call__(self, state: GeneralWorkflowState) -> dict:
+        logger.info(":::CALL_RELEVANCE_SCORE_MANAGER:::")
+        state_input = state["relevance_score_manager_state"]
+        state_input["session"] = state["session"]
+        state_input["relevance_scores"] = state["relevance_evaluator_state"]["relevance_scores"]
         state_output = self._workflow.invoke(
             input=state_input,
             config=self._config,
         )
         output = {
-            "relevance_evaluator_state": state_output,
+            "relevance_score_manager_state": state_output,
         }
         return output
 
@@ -197,29 +246,41 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
         self._query_interpretator_node = QueryInterpretatorNode(llm=llm)
         self._openalex_download_node = OpenAlexDownloadNode()
         self._relevance_evaluator_node = RelevanceEvaluatorNode(llm=llm)
+        self._relevance_score_manager_node = RelevanceScoreManagerNode(llm=llm)
 
     def build(self, **kwargs) -> StateGraph:
         graph_builder = StateGraph(GeneralWorkflowState)
         graph_builder.add_node("QueryInterpretator", self._query_interpretator_node)
         graph_builder.add_node("OpenAlexDownloader", self._openalex_download_node)
         graph_builder.add_node("RelevanceEvaluator", self._relevance_evaluator_node)
+        graph_builder.add_node("RelevanceScoreManager", self._relevance_score_manager_node)
         graph_builder.add_edge(START, "QueryInterpretator")
         graph_builder.add_edge("QueryInterpretator", "OpenAlexDownloader")
         graph_builder.add_edge("OpenAlexDownloader", "RelevanceEvaluator")
-        graph_builder.add_edge("RelevanceEvaluator", END)
+        graph_builder.add_edge("RelevanceEvaluator", "RelevanceScoreManager")
+        graph_builder.add_edge("RelevanceScoreManager", END)
         graph = graph_builder.compile(**kwargs)
         return graph
 
 
 # %%
 if __name__ == "__main__":
-    # ----- Environment variables -----
-    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
-    llm = ChatOllama(
-        # model="qwen3:8b",
-        model="qwen3:32b",
-        temperature=0.0,
-        max_tokens=10000,
+    # import os
+    # from langchain_ollama import ChatOllama
+
+    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+    # llm = ChatOllama(
+    #     # model="qwen3:8b",
+    #     model="qwen3:32b",
+    #     temperature=0.0,
+    #     max_tokens=10000,
+    # )
+    from langchain_openai import ChatOpenAI
+
+    llm = ChatOpenAI(
+        base_url="http://localhost:7007/v1",
+        api_key="not_needed",
+        temperature=0.00,
     )
     user_query = HumanMessage(
         content=(
@@ -231,11 +292,7 @@ if __name__ == "__main__":
     session = Session()
 
     # ----- General workflow -----
-    general_workflow = GeneralWorkflowBuilder(
-        llm=llm,
-    ).build(
-        checkpointer=InMemorySaver(),
-    )
+    general_workflow = GeneralWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
     display_graph(general_workflow)
 
     state_start = GeneralWorkflowState(
@@ -246,22 +303,30 @@ if __name__ == "__main__":
             user_query=None,
             main_topic="",
             context_for_queries="",
-            reformulated_queries_quantity=10,
+            reformulated_queries_quantity=5,
             reformulated_queries=[],
             comment="",
         ),
         openalex_download_state=OpenAlexDownloadState(
             session=None,
             reformulated_queries=[],
-            per_page=5,
+            per_page=1,
             timeout=60,
             works=[],
             pdfs=[],
         ),
         relevance_evaluator_state=RelevanceEvaluatorState(
             session=None,
+            user_query=None,
             works=[],
             pdfs=[],
+            pdfs_extracted_metadata=[],
+            relevance_scores=[],
+        ),
+        relevance_score_manager_state=RelevanceScoreManagerState(
+            session=None,
+            decision="",  # good/bad score
+            mean_relevance_score=0,
             relevance_scores=[],
         ),
     )
@@ -279,6 +344,7 @@ if __name__ == "__main__":
     pprint(state_end["query_interpretator_state"]["reformulated_queries"])
     pprint(state_end["openalex_download_state"]["pdfs"])
     print(f"relevance_scores: \n\t{state_end['relevance_evaluator_state']['relevance_scores']}")
+    print(f"decision: \n\t{state_end['relevance_score_manager_state']['decision']}")
 
     # state_history = [sh for sh in general_workflow.get_state_history(config)]
     # pprint(state_history)

@@ -24,28 +24,37 @@ class PDFImage:
 @dataclass
 class PDFMetadata:
     title: str | None = None
-    author: str | None = None
-    subject: str | None = None
+    abstract: str | None = None
+    year: int | None = None
+    authors: List[str] | None = None
     keywords: List[str] | None = None
-    creator: str | None = None
-    producer: str | None = None
-    creationDate: str | None = None
-    modDate: str | None = None
-    trapped: str | None = None
-    encryption: str | None = None
     num_pages: int | None = None
+
+    def __str__(self) -> str:
+        return (
+            f"PDFMetadata(\n"
+            f"  title={self.title},\n"
+            f"  abstract={self.abstract},\n"
+            f"  year={self.year},\n"
+            f"  authors={self.authors},\n"
+            f"  keywords={self.keywords},\n"
+            f"  num_pages={self.num_pages}\n)"
+        )
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 @dataclass
 class PDFDocument:
     metadata: PDFMetadata
     text: PDFText
-    images: list[PDFImage] | None = None
+    images: List[PDFImage] | None = None
 
     def __str__(self) -> str:
         text = self.text[:20] + "..." + self.text[-20:] if len(self.text) > 40 else self.text
-        num_images = len(self.images) if self.images else 0
-        return f"PDFDocument(metadata={self.metadata},text={text},num_images={num_images})"
+        num_images = len(self.images) if self.images else None
+        return f"PDFDocument(\n  metadata={self.metadata},\n  text={text},\n  num_images={num_images}\n)"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -55,11 +64,10 @@ class PDFDocument:
 if __name__ == "__main__":
     metadata = PDFMetadata(
         title="Hello, world!",
-        author="John Doe",
-        subject="Test",
-        keywords="test, test, test",
-        creator="John Doe",
-        producer="John Doe",
+        authors=["John Doe"],
+        keywords=["test", "test", "test"],
+        year=2021,
+        abstract="Test abstract",
     )
     text = PDFText(text="Hello, world! This is a test of the PDFText class.")
     pdf_document = PDFDocument(

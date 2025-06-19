@@ -9,7 +9,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from relepaper.domains.langgraph.entities.session import Session
-from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder
+from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.langgraph.workflows.utils import display_graph
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.openalex.entities.work import OpenAlexWork
@@ -19,7 +19,15 @@ from relepaper.domains.openalex.services.download_service import OpenAlexPdfDown
 from relepaper.domains.openalex.services.works_save_service import OpenAlexWorksSaveService
 from relepaper.domains.openalex.services.works_search_service import OpenAlexWorksSearchService
 
+# %%
 logger = logging.getLogger(__name__)
+
+if __name__ == "__main__":
+    stream_formatter = logging.Formatter("__log__: %(message)s")
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(stream_formatter)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(stream_handler)
 
 
 # %%
@@ -32,22 +40,12 @@ class OpenAlexDownloadState(TypedDict):
     pdfs: List[OpenAlexPDF]  # List of downloaded pdfs
 
 
-class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
-    def __init__(
-        self,
-        works_search_service: OpenAlexWorksSearchService,
-        works_save_service: OpenAlexWorksSaveService,
-        download_pdfs_service: OpenAlexPdfDownloadService,
-        max_concurrency: int = 4,
-        **kwargs,
-    ):
+class OpenalexSearchNode(IWorkflowNode):
+    def __init__(self, works_search_service: OpenAlexWorksSearchService, max_concurrency: int):
         self._works_search_service = works_search_service
-        self._works_save_service = works_save_service
-        self._download_pdfs_service = download_pdfs_service
         self._max_concurrency = max_concurrency
-        self._kwargs = kwargs
 
-    def _openalex_search_node(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
+    def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
         logger.info(":::NODE: openalex_search:::")
         reformulated_queries = state["reformulated_queries"]
         per_page = state["per_page"]
@@ -70,13 +68,24 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
         }
         return output
 
-    def _save_works_node(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
+
+class DownloadWorksNode(IWorkflowNode):
+    def __init__(self, works_save_service: OpenAlexWorksSaveService):
+        self._works_save_service = works_save_service
+
+    def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
         logger.info(":::NODE: save_works:::")
         works = state["works"]
         self._works_save_service.save_works(works)
-        return {}
+        output = {}
+        return output
 
-    def _download_pdfs_node(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
+
+class DownloadPDFsNode(IWorkflowNode):
+    def __init__(self, download_pdfs_service: OpenAlexPdfDownloadService):
+        self._download_pdfs_service = download_pdfs_service
+
+    def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
         logger.info(":::NODE: download_pdfs:::")
         works = state["works"]
         timeout = state["timeout"]
@@ -89,16 +98,32 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
         }
         return output
 
+
+class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
+    def __init__(
+        self,
+        works_search_service: OpenAlexWorksSearchService,
+        works_save_service: OpenAlexWorksSaveService,
+        download_pdfs_service: OpenAlexPdfDownloadService,
+        max_concurrency: int = 4,
+        **kwargs,
+    ):
+        self._works_search_service = works_search_service
+        self._works_save_service = works_save_service
+        self._download_pdfs_service = download_pdfs_service
+        self._max_concurrency = max_concurrency
+        self._kwargs = kwargs
+
     def build(self, **kwargs) -> StateGraph:
         graph_builder = StateGraph(OpenAlexDownloadState)
-        graph_builder.add_node("openalex_search", self._openalex_search_node)
-        graph_builder.add_node("save_works", self._save_works_node)
-        graph_builder.add_node("download_pdfs", self._download_pdfs_node)
-        graph_builder.add_edge(START, "openalex_search")
-        graph_builder.add_edge("openalex_search", "save_works")
-        graph_builder.add_edge("openalex_search", "download_pdfs")
-        graph_builder.add_edge("save_works", END)
-        graph_builder.add_edge("download_pdfs", END)
+        graph_builder.add_node("OpenalexSearch", OpenalexSearchNode(self._works_search_service, self._max_concurrency))
+        graph_builder.add_node("DownloadWorks", DownloadWorksNode(self._works_save_service))
+        graph_builder.add_node("DownloadPDFs", DownloadPDFsNode(self._download_pdfs_service))
+        graph_builder.add_edge(START, "OpenalexSearch")
+        graph_builder.add_edge("OpenalexSearch", "DownloadWorks")
+        graph_builder.add_edge("OpenalexSearch", "DownloadPDFs")
+        graph_builder.add_edge("DownloadWorks", END)
+        graph_builder.add_edge("DownloadPDFs", END)
         graph = graph_builder.compile(**kwargs)
         return graph
 

@@ -19,37 +19,41 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
 
 def setup_logger(
-    name=__package__,
-    level=LOG_LEVEL,
+    name: str = __package__,
+    level: int = LOG_LEVEL,
     path: Path = LOG_DIR,
     max_bytes: int = 2000,
     backup_count: int = 5,
+    use_stream: bool = True,
+    use_file: bool = False,
+    stream_level: int = logging.INFO,
+    file_level: int = logging.INFO,
+    stream_formatter: str = "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
+    file_formatter: str = "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
+    stream_style: str = "{",
+    file_style: str = "{",
 ):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    stream_formatter = logging.Formatter(
-        "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
-        style="{",
-    )
-    stream_handler = logging.StreamHandler(stream=sys.stdout)
-    stream_handler.setLevel(level)
-    stream_handler.setFormatter(stream_formatter)
+    if use_stream:
+        stream_formatter = logging.Formatter(stream_formatter, style=stream_style)
+        stream_handler = logging.StreamHandler(stream=sys.stdout)
+        stream_handler.setLevel(stream_level)
+        stream_handler.setFormatter(stream_formatter)
+        logger.addHandler(stream_handler)
 
-    file_formatter = logging.Formatter(
-        "{asctime} :::: {levelname} :::: {name} :::: {module}:{funcName}:{lineno} :::: {message}",
-        style="{",
-    )
-    file_handler_dir = path / Path(f"{__package__}.log")
-    file_handler_dir.parent.mkdir(parents=True, exist_ok=True)
-    file_handler = logging.handlers.RotatingFileHandler(
-        file_handler_dir,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-    )
-    file_handler.setLevel(level)
-    file_handler.setFormatter(file_formatter)
+    if use_file:
+        file_formatter = logging.Formatter(file_formatter, style=file_style)
+        file_handler_dir = path / Path(f"{__package__}.log")
+        file_handler_dir.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.handlers.RotatingFileHandler(
+            file_handler_dir,
+            maxBytes=max_bytes,
+            backupCount=backup_count,
+        )
+        file_handler.setLevel(file_level)
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
 
-    logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
     logger.debug("The logger has been configured.")
