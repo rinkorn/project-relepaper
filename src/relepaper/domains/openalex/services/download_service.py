@@ -25,7 +25,7 @@ class OpenAlexPdfDownloadService(IService):
     def download_from_work(
         self,
         work: OpenAlexWork,
-        timeout: int = 10,
+        timeout: int = 60,
     ) -> OpenAlexPDF:
         """Download a PDF from the internet.
 
@@ -54,7 +54,7 @@ class OpenAlexPdfDownloadService(IService):
     def download_from_url(
         self,
         url: str,
-        timeout: int = 10,
+        timeout: int = 60,
     ) -> OpenAlexPDF:
         """Download a PDF from the internet.
 
@@ -81,7 +81,7 @@ class OpenAlexPdfDownloadService(IService):
     def download_from_works(
         self,
         works: List[OpenAlexWork],
-        timeout: int = 10,
+        timeout: int = 60,
     ) -> List[OpenAlexPDF]:
         """Download all PDFs from the internet.
 
@@ -98,7 +98,7 @@ class OpenAlexPdfDownloadService(IService):
     def download_from_urls(
         self,
         urls: List[str],
-        timeout: int = 10,
+        timeout: int = 60,
     ) -> List[OpenAlexPDF]:
         """Download all PDFs from the internet.
 

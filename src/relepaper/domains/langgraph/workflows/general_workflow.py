@@ -1,5 +1,4 @@
 # %%
-import logging
 import operator
 import uuid
 from pathlib import Path
@@ -10,6 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 from relepaper.domains.langgraph.entities.session import Session
 from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
@@ -40,16 +40,6 @@ from relepaper.domains.openalex.external.repositories.works.on_filesystem_reposi
 from relepaper.domains.openalex.services.download_service import OpenAlexPdfDownloadService
 from relepaper.domains.openalex.services.works_save_service import OpenAlexWorksSaveService
 from relepaper.domains.openalex.services.works_search_service import OpenAlexWorksSearchService
-
-# %%
-logger = logging.getLogger(__name__)
-
-if __name__ == "__main__":
-    logger.setLevel(logging.DEBUG)
-    stream_formatter = logging.Formatter("__log__: %(message)s")
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(stream_formatter)
-    logger.addHandler(stream_handler)
 
 
 # %%
@@ -265,6 +255,9 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
 
 # %%
 if __name__ == "__main__":
+    from relepaper.config.logger import setup_logger
+
+    setup_logger(stream_level="INFO")
     # import os
     # from langchain_ollama import ChatOllama
 
@@ -310,7 +303,7 @@ if __name__ == "__main__":
         openalex_download_state=OpenAlexDownloadState(
             session=None,
             reformulated_queries=[],
-            per_page=1,
+            per_page=5,
             timeout=60,
             works=[],
             pdfs=[],

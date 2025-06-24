@@ -1,5 +1,4 @@
 # %%
-import logging
 from pathlib import Path
 from pprint import pprint
 from typing import List, TypedDict
@@ -9,6 +8,7 @@ from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
@@ -20,16 +20,6 @@ __all__ = [
     "PDFMetadataExtractorState",
     "PDFMetadataExtractorWorkflowBuilder",
 ]
-
-# %%
-logger = logging.getLogger(__name__)
-
-if __name__ == "__main__":
-    formatter = logging.Formatter("__log__: %(message)s")
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 
 # %%
@@ -48,6 +38,7 @@ class PDFMetadataExtractorNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: PDFMetadataExtractorState) -> PDFMetadataExtractorState:
+        logger.info(":::NODE: PDFMetadataExtractor:::")
         pdf_document = state["pdf_document"]
 
         response_schemas = [
@@ -82,7 +73,7 @@ class PDFMetadataExtractorNode(IWorkflowNode):
                 description="Extract the year of the PDF file.",
                 type="number",
                 minValue=0,
-                maxValue=2025,
+                maxValue=2099,
                 multipleOf=1,
             ),
             ResponseSchema(
@@ -155,6 +146,7 @@ class PDFMetadataExtractorWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
+        logger.info(":::WORKFLOW BUILD: PDFMetadataExtractorWorkflowBuilder:::")
         graph = StateGraph(PDFMetadataExtractorState)
         graph.add_node("pdf_metadata_extract", PDFMetadataExtractorNode(llm=self._llm))
         graph.add_edge(START, "pdf_metadata_extract")
@@ -187,43 +179,57 @@ if __name__ == "__main__":
     # llm.invoke("Hello, world!")
 
     pdfs = [
+        # OpenAlexPDF(
+        #     url="https://www.mdpi.com/1996-1073/10/11/1846/pdf?version=1510484667",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="energies-10-01846.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        # ),
+        # OpenAlexPDF(
+        #     url="https://some-url.com",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="3219819.3220096.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        # ),
+        # OpenAlexPDF(
+        #     url="https://some-url.com",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        # ),
+        # OpenAlexPDF(
+        #     url="https://jcheminf.biomedcentral.com/track/pdf/10.1186/s13321-021-00561-9",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="s13321-021-00561-9.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        # ),
         OpenAlexPDF(
-            url="https://www.mdpi.com/1996-1073/10/11/1846/pdf?version=1510484667",
+            url="https://dr.ntu.edu.sg/bitstream/10356/172831/2/main_thesis.pdf",
             dirname=Path(
                 "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
             ),
-            filename="energies-10-01846.pdf",
-            strategy=PDFDownloadStrategy.SELENIUM,
-        ),
-        OpenAlexPDF(
-            url="https://some-url.com",
-            dirname=Path(
-                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
-            ),
-            filename="3219819.3220096.pdf",
-            strategy=PDFDownloadStrategy.SELENIUM,
-        ),
-        OpenAlexPDF(
-            url="https://some-url.com",
-            dirname=Path(
-                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
-            ),
-            filename="Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf",
-            strategy=PDFDownloadStrategy.SELENIUM,
-        ),
-        OpenAlexPDF(
-            url="https://jcheminf.biomedcentral.com/track/pdf/10.1186/s13321-021-00561-9",
-            dirname=Path(
-                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
-            ),
-            filename="s13321-021-00561-9.pdf",
+            filename="main_thesis.pdf",
             strategy=PDFDownloadStrategy.SELENIUM,
         ),
     ]
     pdf_adapter = AdapterFactory.create("pymupdf")
     pdf_service = PDFDocumentService(pdf_adapter=pdf_adapter)
 
-    pdf_documents = [pdf_service.load_pdf_document(pdf.dirname / pdf.filename) for pdf in pdfs]
+    pdf_documents = []
+    for pdf in pdfs:
+        pdf_document = pdf_service.load_pdf_document(
+            pdf.dirname / pdf.filename,
+            max_text_length=280000,
+        )
+        pdf_documents.append(pdf_document)
 
     workflow = PDFMetadataExtractorWorkflowBuilder(llm=llm).build()
     for pdf_document in pdf_documents:

@@ -23,6 +23,7 @@ dependencies = [
     "langchain-ollama>=0.3.2",
     "langchain-openai>=0.3.14",
     "langgraph>=0.4.3",
+    "loguru>=0.7.3",
     "matplotlib>=3.10.1",
     "numexpr>=2.10.2",
     "openreview-py>=1.47.2",

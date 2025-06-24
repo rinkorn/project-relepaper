@@ -1,6 +1,7 @@
 # %%
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional
 
 
@@ -13,6 +14,11 @@ class OpenAlexWork:
     abstract: Optional[str] = None
     primary_location: Optional[dict] = None
     additional_kwargs: Optional[dict] = None
+
+    # Новые поля для связи с запросами
+    source_query: Optional[str] = None
+    source_query_index: Optional[int] = None
+    found_at: Optional[datetime] = None
 
     def __post_init__(self):
         """Validation after initialization."""
@@ -43,6 +49,18 @@ class OpenAlexWork:
         abstract = work_data.pop("abstract", None)
         primary_location = work_data.pop("primary_location", None)
 
+        # Извлекаем новые поля, если они есть
+        source_query = work_data.pop("source_query", None)
+        source_query_index = work_data.pop("source_query_index", None)
+        found_at = work_data.pop("found_at", None)
+
+        # Обработка found_at если это строка
+        if isinstance(found_at, str):
+            try:
+                found_at = datetime.fromisoformat(found_at)
+            except ValueError:
+                found_at = None
+
         return cls(
             id=id,
             title=title,
@@ -50,6 +68,9 @@ class OpenAlexWork:
             keywords=keywords,
             abstract=abstract,
             primary_location=primary_location,
+            source_query=source_query,
+            source_query_index=source_query_index,
+            found_at=found_at,
             additional_kwargs=work_data,  # other fields
         )
 
@@ -65,6 +86,9 @@ class OpenAlexWork:
             "keywords": self.keywords,
             "abstract": self.abstract,
             "primary_location": self.primary_location,
+            "source_query": self.source_query,
+            "source_query_index": self.source_query_index,
+            "found_at": self.found_at.isoformat() if self.found_at else None,
             "additional_kwargs": self.additional_kwargs,
         }
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Optional
 
 
 class PDFDownloadStrategy(Enum):
@@ -16,6 +17,11 @@ class OpenAlexPDF:
     dirname: Path | None = None
     filename: str | None = None
     strategy: PDFDownloadStrategy | None = None
+
+    # Новые поля для связи с запросами
+    source_query: Optional[str] = None
+    source_work_id: Optional[str] = None
+    source_query_index: Optional[int] = None
 
     def __bool__(self) -> bool:
         return bool(self.url)

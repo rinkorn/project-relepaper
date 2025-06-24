@@ -1,5 +1,4 @@
 # %%
-import logging
 import uuid
 from pprint import pprint
 from typing import List, TypedDict
@@ -10,6 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.langgraph.workflows.utils import display_graph
@@ -18,16 +18,6 @@ __all__ = [
     "RelevanceScoreManagerWorkflowBuilder",
     "RelevanceScoreManagerState",
 ]
-
-# %%
-logger = logging.getLogger(__name__)
-
-if __name__ == "__main__":
-    formatter = logging.Formatter("__log__: %(message)s")
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 
 # %%
@@ -63,7 +53,7 @@ class RelevanceScoreManager0Node(IWorkflowNode):
         pass
 
     def __call__(self, state: RelevanceScoreManagerState) -> RelevanceScoreManagerState:
-        logger.info(":::NODE: RelevanceScoreManager0:::")
+        logger.debug(":::NODE: RelevanceScoreManager0:::")
         relevance_scores = state["relevance_scores"]
         mean_relevance_score = sum(relevance_scores) / len(relevance_scores)
 
@@ -84,7 +74,7 @@ class RelevanceScoreManagerNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: RelevanceScoreManagerState) -> RelevanceScoreManagerState:
-        logger.info(":::NODE: relevance_score_manager:::")
+        logger.debug(":::NODE: RelevanceScoreManager:::")
         relevance_scores = state["relevance_scores"]
         mean_relevance_score = sum(relevance_scores) / len(relevance_scores)
 
@@ -118,6 +108,7 @@ class RelevanceScoreManagerWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
+        logger.debug(":::WORKFLOW BUILD: RelevanceScoreManagerWorkflowBuilder:::")
         graph_builder = StateGraph(RelevanceScoreManagerState)
         # graph_builder.add_node("RelevanceScoreManager", RelevanceScoreManagerNode(llm=self._llm))
         graph_builder.add_node("RelevanceScoreManager0", RelevanceScoreManager0Node())
@@ -130,6 +121,9 @@ class RelevanceScoreManagerWorkflowBuilder(IWorkflowBuilder):
 
 
 if __name__ == "__main__":
+    from relepaper.config.logger import setup_logger
+
+    setup_logger(stream_level="INFO")
     # import os
     # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     # llm = ChatOllama(

@@ -1,5 +1,4 @@
 # %%
-import logging
 import random
 from pprint import pprint
 from typing import List, TypedDict
@@ -10,6 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 from relepaper.domains.langgraph.entities.session import Session
 from relepaper.domains.langgraph.workflows.interfaces import (
@@ -30,16 +30,6 @@ __all__ = [
     "RelevanceEvaluatorState",
     "RelevanceEvaluatorWorkflowBuilder",
 ]
-
-# %%
-logger = logging.getLogger(__name__)
-
-if __name__ == "__main__":
-    formatter = logging.Formatter("__log__: %(message)s")
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 
 # %%
@@ -199,11 +189,14 @@ class PDFMetadataExtractorNode(IWorkflowNode):
         self._pdf_service = PDFDocumentService(pdf_adapter=self._pdf_adapter)
 
     def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
-        logger.info(":::CALL_PDF_METADATA_EXTRACTOR:::")
+        logger.info(":::NODE: PDFMetadataExtractor:::")
 
         pdfs_extracted_metadata = []
         for openalex_pdf in state["pdfs"]:
-            pdf_document = self._pdf_service.load_pdf_document(openalex_pdf.dirname / openalex_pdf.filename)
+            if not openalex_pdf.is_file_exist:
+                continue
+            pdf_path = openalex_pdf.file_path
+            pdf_document = self._pdf_service.load_pdf_document(pdf_path)
             state_input = {
                 "pdf_document": pdf_document,
             }
@@ -234,8 +227,17 @@ if __name__ == "__main__":
             dirname=Path(
                 "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
             ),
-            filename="energies-10-01846.pdf",
+            filename="",
             strategy=PDFDownloadStrategy.SELENIUM,
+        ),
+        OpenAlexPDF(
+            url="https://dr.ntu.edu.sg/bitstream/10356/172831/2/main_thesis.pdf",
+            dirname=Path(
+                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+            ),
+            filename="main_thesis.pdf",
+            strategy=PDFDownloadStrategy.SELENIUM,
+            source_query="Менеджмент энергии в микросетке с использованием пакетного обучения с подкреплением",
         ),
         OpenAlexPDF(
             url="https://some-url.com",
@@ -278,6 +280,25 @@ if __name__ == "__main__":
 
 
 # %%
+class RandomRelevanceEvaluatorNode(IWorkflowNode):
+    def __init__(self, llm: BaseChatModel):
+        self._llm = llm
+
+    def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
+        logger.info(":::NODE: RandomRelevanceEvaluator:::")
+        pdfs = state["pdfs"]
+
+        scores: List[float] = []
+        for pdf in pdfs:
+            score = round(random.random() * 10, 2)
+            scores.append(score)
+        output = {
+            "relevance_scores": scores,
+        }
+        return output
+
+
+# %%
 class PDFRelevanceEvaluatorNode(IWorkflowNode):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
@@ -292,7 +313,7 @@ class PDFRelevanceEvaluatorNode(IWorkflowNode):
         }
 
     def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
-        logger.info(":::CALL_PDF_CONTENT_ANALYZER:::")
+        logger.info(":::NODE: PDFRelevanceEvaluator:::")
 
         user_query = state["user_query"]
         pdfs_extracted_metadata = state["pdfs_extracted_metadata"]
@@ -354,29 +375,41 @@ if __name__ == "__main__":
         temperature=0.0,
     )
     pdfs = [
-        OpenAlexPDF(
-            url="https://www.mdpi.com/1996-1073/10/11/1846/pdf?version=1510484667",
-            dirname=Path(
-                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
-            ),
-            filename="energies-10-01846.pdf",
-            strategy=PDFDownloadStrategy.SELENIUM,
-        ),
+        # OpenAlexPDF(
+        #     url="https://www.mdpi.com/1996-1073/10/11/1846/pdf?version=1510484667",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="energies-10-01846.pd",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        #     source_query="Менеджмент энергии в микросетке с использованием пакетного обучения с подкреплением",
+        # ),
+        # OpenAlexPDF(
+        #     url="https://some-url.com",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="3219819.3220096.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        #     source_query="Менеджмент энергии в микросетке с использованием пакетного обучения с подкреплением",
+        # ),
+        # OpenAlexPDF(
+        #     url="https://some-url.com",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        #     source_query="Машинное обучение. Обучение с подкреплением",
+        # ),
         OpenAlexPDF(
             url="https://some-url.com",
             dirname=Path(
                 "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
             ),
-            filename="3219819.3220096.pdf",
+            filename="main_thesis.pdf",
             strategy=PDFDownloadStrategy.SELENIUM,
-        ),
-        OpenAlexPDF(
-            url="https://some-url.com",
-            dirname=Path(
-                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
-            ),
-            filename="Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf",
-            strategy=PDFDownloadStrategy.SELENIUM,
+            source_query="Я пишу диссертацию по теме: Обучение с подкреплением. Обучение в офлайн-режиме.",
         ),
         # OpenAlexPDF(
         #     url="https://jcheminf.biomedcentral.com/track/pdf/10.1186/s13321-021-00561-9",
@@ -390,7 +423,6 @@ if __name__ == "__main__":
 
     user_query = "Менеджмент энергии в микросетке с использованием пакетного обучения с подкреплением"
 
-    print("|" * 100)
     evaluator_state_start = RelevanceEvaluatorState(
         user_query=HumanMessage(
             content=(f"Я пишу диссертацию по теме: {user_query}. Скачай все статьи по этой теме. \n/no-think"),
@@ -411,30 +443,12 @@ if __name__ == "__main__":
 
 
 # %%
-class RandomRelevanceEvaluatorNode(IWorkflowNode):
-    def __init__(self, llm: BaseChatModel):
-        self._llm = llm
-
-    def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
-        logger.info(":::CALL_RANDOM_RELEVANCE_EVALUATOR:::")
-        pdfs = state["pdfs"]
-
-        scores: List[float] = []
-        for pdf in pdfs:
-            score = round(random.random() * 10, 2)
-            scores.append(score)
-        output = {
-            "relevance_scores": scores,
-        }
-        return output
-
-
-# %%
 class RelevanceEvaluatorWorkflowBuilder(IWorkflowBuilder):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
+        logger.info(":::WORKFLOW BUILD: RelevanceEvaluatorWorkflowBuilder:::")
         graph_builder = StateGraph(RelevanceEvaluatorState)
         graph_builder.add_node("PDFMetadataExtractor", PDFMetadataExtractorNode(llm=self._llm))
         graph_builder.add_node("RelevanceEvaluator", PDFRelevanceEvaluatorNode(llm=self._llm))
@@ -469,6 +483,7 @@ if __name__ == "__main__":
             ),
             filename="energies-10-01846.pdf",
             strategy=PDFDownloadStrategy.SELENIUM,
+            source_query="Менеджмент энергии в микросетке с использованием пакетного обучения с подкреплением",
         ),
         OpenAlexPDF(
             url="https://some-url.com",
@@ -477,6 +492,7 @@ if __name__ == "__main__":
             ),
             filename="3219819.3220096.pdf",
             strategy=PDFDownloadStrategy.SELENIUM,
+            source_query="Менеджмент энергии в микросетке с использованием пакетного обучения с подкреплением",
         ),
         OpenAlexPDF(
             url="https://some-url.com",
@@ -485,6 +501,16 @@ if __name__ == "__main__":
             ),
             filename="Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf",
             strategy=PDFDownloadStrategy.SELENIUM,
+            source_query="Машинное обучение. Обучение с подкреплением",
+        ),
+        OpenAlexPDF(
+            url="https://dr.ntu.edu.sg/bitstream/10356/172831/2/main_thesis.pdf",
+            dirname=Path(
+                "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+            ),
+            filename="main_thesis.pdf",
+            strategy=PDFDownloadStrategy.SELENIUM,
+            source_query="Я пишу диссертацию по теме: Обучение с подкреплением. Обучение в офлайн-режиме.",
         ),
         # OpenAlexPDF(
         #     url="https://jcheminf.biomedcentral.com/track/pdf/10.1186/s13321-021-00561-9",

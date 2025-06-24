@@ -1,5 +1,4 @@
 # %%
-import logging
 import os
 import uuid
 from pprint import pprint
@@ -12,6 +11,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 from relepaper.domains.langgraph.entities.session import Session
 from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
@@ -21,22 +21,6 @@ __all__ = [
     "QueryInterpretatorState",
     "QueryInterpretatorWorkflowBuilder",
 ]
-
-# %%
-# %%
-if __name__ == "__main__":
-    from relepaper.config.logger import setup_logger
-
-    setup_logger(
-        name=__name__,
-        use_stream=True,
-        use_file=False,
-        stream_level=logging.INFO,
-        stream_formatter="__log__: %(message)s",
-        stream_style="%",
-    )
-else:
-    logger = logging.getLogger(__name__)
 
 
 # %%

@@ -9,11 +9,12 @@ class PDFDocumentService(IService):
     def __init__(self, pdf_adapter: IPDFAdapter):
         self.pdf_adapter = pdf_adapter
 
-    def load_pdf_document(self, pdf_path: Path) -> PDFDocument:
+    def load_pdf_document(self, pdf_path: Path, max_text_length: int = None) -> PDFDocument:
         """Read the content of a PDF file."""
 
         metadata = self.pdf_adapter.extract_metadata(pdf_path=pdf_path)
         text = self.pdf_adapter.extract_text(pdf_path=pdf_path)
+        # images = self.pdf_adapter.extract_images(pdf_path=pdf_path)
 
         pdf_metadata = PDFMetadata(
             title=metadata.get("title", None),
@@ -23,13 +24,14 @@ class PDFDocumentService(IService):
             abstract=metadata.get("abstract", None),
             num_pages=metadata.get("page_count", None),
         )
-
+        if max_text_length is not None:
+            text = text[:max_text_length]
         pdf_text = PDFText(text=text)
-        # pdf_images = self.pdf_adapter.extract_images(pdf_path=pdf_path)
+        # pdf_images = PDFImages(images=images)
 
         pdf_document: PDFDocument = PDFDocument(
-            text=pdf_text,
             metadata=pdf_metadata,
+            text=pdf_text,
             # images=pdf_images,
         )
         return pdf_document
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     )
     # pdf_path = pdf_path / "energies-10-01846.pdf"
     # pdf_path = pdf_path / "s13321-021-00561-9.pdf"
-    # pdf_path = pdf_path / "3219819.3220096.pdf"
+    pdf_path = pdf_path / "main_thesis.pdf"
     # pdf_path = (
     #     pdf_path
     #     / "Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf"
@@ -73,7 +75,7 @@ if __name__ == "__main__":
     pdf_service = PDFDocumentService(pdf_adapter=pdf_adapter)
     pdf_document = pdf_service.load_pdf_document(pdf_path=pdf_path)
     # print(pdf_document)
-    print(pdf_document.text)
+    print(len(pdf_document.text[:100000]))
     print(pdf_document.metadata)
 
 # %%
