@@ -134,16 +134,21 @@ class QueryInterpretatorState(TypedDict):
 
 
 # if __name__ == "__main__":
-#     print("--------------------------------")
-#     print("ContextMakerNode:")
-#     llm = ChatOllama(
-#         # model="qwen3:30B-a3b",
-#         model="qwen3:32b",
-#         # model="qwen3:14b",
-#         # model="qwen3:8b",
-#         temperature=0.0,
-#         max_tokens=10000,
+#     from langchain.chat_models import ChatOpenAI
+
+#     llm = ChatOpenAI(
+#         base_url="http://localhost:7007/v1",
+#         api_key="not_needed",
+#         temperature=0.00,
 #     )
+#     # llm = ChatOllama(
+#     #     # model="qwen3:30B-a3b",
+#     #     model="qwen3:32b",
+#     #     # model="qwen3:14b",
+#     #     # model="qwen3:8b",
+#     #     temperature=0.0,
+#     #     max_tokens=10000,
+#     # )
 #     context_maker_state_start = QueryInterpretatorState(
 #         user_query=HumanMessage(
 #             content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
@@ -213,6 +218,9 @@ class QueryInterpretatorState(TypedDict):
 #             "\n/no-think"
 #         )
 
+#         from pydantic import BaseModel, Field
+#         from langgraph.prebuilt import create_react_agent
+
 #         class AnswerResponseFormat(BaseModel):
 #             comment: str = Field(description="Comment to the user query")
 #             main_topic: str = Field(description="Main topic of the user query")
@@ -259,14 +267,20 @@ class QueryInterpretatorState(TypedDict):
 
 
 # if __name__ == "__main__":
-#     llm = ChatOllama(
-#         # model="qwen3:30B-a3b",
-#         model="qwen3:32b",
-#         # model="qwen3:14b",
-#         # model="qwen3:8b",
-#         temperature=0.0,
-#         max_tokens=10000,
+#     from langchain.chat_models import ChatOpenAI
+#     llm = ChatOpenAI(
+#         base_url="http://localhost:7007/v1",
+#         api_key="not_needed",
+#         temperature=0.00,
 #     )
+#     # llm = ChatOllama(
+#     #     # model="qwen3:30B-a3b",
+#     #     model="qwen3:32b",
+#     #     # model="qwen3:14b",
+#     #     # model="qwen3:8b",
+#     #     temperature=0.0,
+#     #     max_tokens=10000,
+#     # )
 #     state_start = QueryInterpretatorState(
 #         user_query=HumanMessage(
 #             content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
@@ -694,19 +708,15 @@ class QueryInterpretatorWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
+        logger.trace("QueryInterpretatorWorkflowBuilder: build: start")
         graph_builder = StateGraph(QueryInterpretatorState)
-        graph_builder.add_node(
-            "ContextMaker",
-            ContextMaker3Node(self._llm),
-        )
-        graph_builder.add_node(
-            "QueryReformulator",
-            QueryReformulator2Node(self._llm),
-        )
+        graph_builder.add_node("ContextMaker", ContextMaker3Node(self._llm))
+        graph_builder.add_node("QueryReformulator", QueryReformulator2Node(self._llm))
         graph_builder.add_edge(START, "ContextMaker")
         graph_builder.add_edge("ContextMaker", "QueryReformulator")
         graph_builder.add_edge("QueryReformulator", END)
         graph = graph_builder.compile(**kwargs)
+        logger.trace("QueryInterpretatorWorkflowBuilder: build: done")
         return graph
 
 

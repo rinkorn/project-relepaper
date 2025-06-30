@@ -1,6 +1,5 @@
 # %%
 import uuid
-from pprint import pprint
 from typing import List, TypedDict
 
 from langchain.chat_models import ChatOpenAI
@@ -11,12 +10,15 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
+from relepaper.domains.langgraph.entities.relevance_decision import RelevanceDecision
+from relepaper.domains.langgraph.entities.relevance_score import RelevanceScore
+from relepaper.domains.langgraph.entities.relevance_score_container import RelevanceScoreContainer
 from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.langgraph.workflows.utils import display_graph
 
 __all__ = [
-    "RelevanceScoreManagerWorkflowBuilder",
     "RelevanceScoreManagerState",
+    "RelevanceScoreManagerWorkflowBuilder",
 ]
 
 
@@ -25,7 +27,7 @@ def get_response_schemas() -> List[ResponseSchema]:
     return [
         ResponseSchema(
             name="decision",
-            description="The decision to include the article in the dissertation",
+            description="The decision to include the article to the research paper",
             type="string",
             enum=["good score", "bad score"],
         ),
@@ -35,37 +37,41 @@ def get_response_schemas() -> List[ResponseSchema]:
 def get_prompt_template() -> str:
     return (
         "You are a helpful assistant that can help me to manage relevance scores. "
-        "Accept the decision to include the article in the dissertation. "
-        "If the mean relevance score is above 50, then answer 'good score', otherwise answer 'bad score'. "
-        "MEAN RELEVANCE SCORE: {mean_relevance_score}"
+        "Accept the decision to include the article to the research paper. "
+        "If the mean score overall pdfs is above 50, then answer 'good score', otherwise answer 'bad score'. "
+        "MEAN SCORE OVERALL PDFS: {mean_score_overall_pdfs}"
         "FORMAT INSTRUCTIONS:\n{format_instructions}\n\n"
     )
 
 
 class RelevanceScoreManagerState(TypedDict):
-    relevance_scores: List[float]
-    mean_relevance_score: float
-    decision: str
+    relevance_scores: List[RelevanceScoreContainer]
+    mean_score_overall_pdfs: float
+    decision: RelevanceDecision
 
 
 class RelevanceScoreManager0Node(IWorkflowNode):
-    def __init__(self):
-        pass
-
     def __call__(self, state: RelevanceScoreManagerState) -> RelevanceScoreManagerState:
-        logger.debug(":::NODE: RelevanceScoreManager0:::")
+        logger.trace(f"{self.__class__.__name__}: __call__: start")
         relevance_scores = state["relevance_scores"]
-        mean_relevance_score = sum(relevance_scores) / len(relevance_scores)
 
-        if mean_relevance_score > 50:
-            decision = "good score"
+        mean_scores = [container.mean for container in relevance_scores]
+        mean_score = sum(mean_scores) / len(mean_scores)
+        logger.debug(f"mean_scores: {mean_score}")
+        logger.debug(f"mean score overall pdfs: {mean_score:.2f}")
+
+        if mean_score > 50:
+            decision = RelevanceDecision(decision="good score", comment="good score is above 50")
         else:
-            decision = "bad score"
+            decision = RelevanceDecision(decision="bad score", comment="bad score is below 50")
+
+        logger.info(f"{self.__class__.__name__}: decision: {decision}")
 
         output = {
-            "mean_relevance_score": mean_relevance_score,
+            "mean_score_overall_pdfs": mean_score,
             "decision": decision,
         }
+        logger.trace(f"{self.__class__.__name__}: __call__: end")
         return output
 
 
@@ -74,9 +80,13 @@ class RelevanceScoreManagerNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: RelevanceScoreManagerState) -> RelevanceScoreManagerState:
-        logger.debug(":::NODE: RelevanceScoreManager:::")
+        logger.trace(f"{self.__class__.__name__}: __call__: start")
         relevance_scores = state["relevance_scores"]
-        mean_relevance_score = sum(relevance_scores) / len(relevance_scores)
+
+        mean_scores = [container.mean for container in relevance_scores]
+        mean_score = sum(mean_scores) / len(mean_scores)
+        logger.debug(f"mean scores by pdfs: {mean_scores}")
+        logger.debug(f"mean score overall pdfs: {mean_score:.2f}")
 
         prompt_template = get_prompt_template()
         response_schemas = get_response_schemas()
@@ -84,7 +94,7 @@ class RelevanceScoreManagerNode(IWorkflowNode):
         format_instructions = output_parser.get_format_instructions()
         prompt = PromptTemplate(
             template=prompt_template,
-            input_variables=["mean_relevance_score", "format_instructions"],
+            input_variables=["mean_score_overall_pdfs"],
             partial_variables={"format_instructions": format_instructions},
         )
 
@@ -92,14 +102,16 @@ class RelevanceScoreManagerNode(IWorkflowNode):
 
         response = chain.invoke(
             {
-                "mean_relevance_score": mean_relevance_score,
+                "mean_score_overall_pdfs": mean_score,
             }
         )
-        pprint(response)
+        decision = RelevanceDecision(decision=response["decision"])
+        logger.info(f"{self.__class__.__name__}: decision: {decision}")
         output = {
-            "mean_relevance_score": mean_relevance_score,
-            "decision": response["decision"],
+            "mean_score_overall_pdfs": mean_score,
+            "decision": decision,
         }
+        logger.trace(f"{self.__class__.__name__}: __call__: end")
         return output
 
 
@@ -108,22 +120,21 @@ class RelevanceScoreManagerWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
-        logger.debug(":::WORKFLOW BUILD: RelevanceScoreManagerWorkflowBuilder:::")
+        logger.trace(f"{self.__class__.__name__}: build: start")
         graph_builder = StateGraph(RelevanceScoreManagerState)
-        # graph_builder.add_node("RelevanceScoreManager", RelevanceScoreManagerNode(llm=self._llm))
-        graph_builder.add_node("RelevanceScoreManager0", RelevanceScoreManager0Node())
-        # graph_builder.add_edge(START, "RelevanceScoreManager")
-        # graph_builder.add_edge("RelevanceScoreManager", "RelevanceScoreManager0")
-        graph_builder.add_edge(START, "RelevanceScoreManager0")
-        graph_builder.add_edge("RelevanceScoreManager0", END)
+        # graph_builder.add_node("RelevanceScoreManager", RelevanceScoreManager0Node())
+        graph_builder.add_node("RelevanceScoreManager", RelevanceScoreManagerNode(llm=self._llm))
+        graph_builder.add_edge(START, "RelevanceScoreManager")
+        graph_builder.add_edge("RelevanceScoreManager", END)
         graph = graph_builder.compile(**kwargs)
+        logger.trace(f"{self.__class__.__name__}: build: end")
         return graph
 
 
 if __name__ == "__main__":
     from relepaper.config.logger import setup_logger
 
-    setup_logger(stream_level="INFO")
+    setup_logger(stream_level="TRACE")
     # import os
     # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     # llm = ChatOllama(
@@ -136,23 +147,81 @@ if __name__ == "__main__":
         api_key="not_needed",
         temperature=0.00,
     )
-    workflow = RelevanceScoreManagerWorkflowBuilder(
-        llm=llm,
-    ).build(
-        checkpointer=InMemorySaver(),
-    )
+    workflow = RelevanceScoreManagerWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
     display_graph(workflow)
 
-    # relevance_scores = [10, 20, 30, 40, 50]
-    # relevance_scores = [40, 40, 40, 40, 40]
-    relevance_scores = [50, 60, 70, 80, 90]
+    relevance_scores = [
+        RelevanceScoreContainer(
+            scores=[
+                RelevanceScore(criteria="theme_score", score=25, comment=""),
+                RelevanceScore(criteria="terminology_score", score=45, comment=""),
+                RelevanceScore(criteria="methodology_score", score=50, comment=""),
+                RelevanceScore(criteria="practical_applicability_score", score=25, comment=""),
+                RelevanceScore(criteria="novelty_and_relevance_score", score=25, comment=""),
+                RelevanceScore(criteria="fundamental_significance_score", score=25, comment=""),
+            ]
+        ),
+        RelevanceScoreContainer(
+            scores=[
+                RelevanceScore(criteria="theme_score", score=15, comment=""),
+                RelevanceScore(criteria="terminology_score", score=10, comment=""),
+                RelevanceScore(criteria="methodology_score", score=10, comment=""),
+                RelevanceScore(criteria="practical_applicability_score", score=15, comment=""),
+                RelevanceScore(criteria="novelty_and_relevance_score", score=10, comment=""),
+                RelevanceScore(criteria="fundamental_significance_score", score=10, comment=""),
+            ]
+        ),
+        RelevanceScoreContainer(
+            scores=[
+                RelevanceScore(criteria="theme_score", score=20, comment=""),
+                RelevanceScore(criteria="terminology_score", score=45, comment=""),
+                RelevanceScore(criteria="methodology_score", score=20, comment=""),
+                RelevanceScore(criteria="practical_applicability_score", score=20, comment=""),
+                RelevanceScore(criteria="novelty_and_relevance_score", score=20, comment=""),
+                RelevanceScore(criteria="fundamental_significance_score", score=20, comment=""),
+            ]
+        ),
+        RelevanceScoreContainer(
+            scores=[
+                RelevanceScore(criteria="theme_score", score=90, comment=""),
+                RelevanceScore(criteria="terminology_score", score=80, comment=""),
+                RelevanceScore(criteria="methodology_score", score=85, comment=""),
+                RelevanceScore(criteria="practical_applicability_score", score=90, comment=""),
+                RelevanceScore(criteria="novelty_and_relevance_score", score=90, comment=""),
+                RelevanceScore(criteria="fundamental_significance_score", score=80, comment=""),
+            ]
+        ),
+        RelevanceScoreContainer(
+            scores=[
+                RelevanceScore(criteria="theme_score", score=90, comment=""),
+                RelevanceScore(criteria="terminology_score", score=80, comment=""),
+                RelevanceScore(criteria="methodology_score", score=85, comment=""),
+                RelevanceScore(criteria="practical_applicability_score", score=90, comment=""),
+                RelevanceScore(criteria="novelty_and_relevance_score", score=90, comment=""),
+                RelevanceScore(criteria="fundamental_significance_score", score=80, comment=""),
+            ]
+        ),
+        RelevanceScoreContainer(
+            scores=[
+                RelevanceScore(criteria="theme_score", score=50, comment=""),
+                RelevanceScore(criteria="terminology_score", score=60, comment=""),
+                RelevanceScore(criteria="methodology_score", score=70, comment=""),
+                RelevanceScore(criteria="practical_applicability_score", score=40, comment=""),
+                RelevanceScore(criteria="novelty_and_relevance_score", score=80, comment=""),
+                RelevanceScore(criteria="fundamental_significance_score", score=65, comment=""),
+            ]
+        ),
+    ]
+
     state_start = RelevanceScoreManagerState(
-        relevance_scores=relevance_scores,
+        relevance_scores=relevance_scores[:3],
+        mean_score_overall_pdfs=None,
+        decision=None,
     )
     config = {
         "configurable": {
-            "max_concurrency": 4,
             "max_retries": 5,
+            "max_concurrency": 1,
             "thread_id": uuid.uuid4().hex,
         },
     }

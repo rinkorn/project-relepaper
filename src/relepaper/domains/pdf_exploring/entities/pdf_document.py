@@ -59,6 +59,9 @@ class PDFDocument:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __len__(self) -> int:
+        return len(self.text)
+
 
 # %%
 if __name__ == "__main__":

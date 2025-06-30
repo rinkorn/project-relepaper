@@ -36,7 +36,7 @@ class OpenalexSearchNode(IWorkflowNode):
         self._max_concurrency = max_concurrency
 
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
-        logger.info(":::NODE: OpenalexSearch:::")
+        logger.trace(f"{self.__class__.__name__}: __call__: start")
         reformulated_queries = state["reformulated_queries"]
         per_page = state["per_page"]
 
@@ -66,6 +66,7 @@ class OpenalexSearchNode(IWorkflowNode):
         output = {
             "works": all_works,
         }
+        logger.trace(f"{self.__class__.__name__}: __call__: end")
         return output
 
 
@@ -74,10 +75,11 @@ class DownloadWorksNode(IWorkflowNode):
         self._works_save_service = works_save_service
 
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
-        logger.info(":::NODE: DownloadWorks:::")
+        logger.trace(f"{self.__class__.__name__}: __call__: start")
         works = state["works"]
         self._works_save_service.save_works(works)
         output = {}
+        logger.trace(f"{self.__class__.__name__}: __call__: end")
         return output
 
 
@@ -86,7 +88,7 @@ class DownloadPDFsNode(IWorkflowNode):
         self._download_pdfs_service = download_pdfs_service
 
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
-        logger.info(":::NODE: DownloadPDFs:::")
+        logger.trace(f"{self.__class__.__name__}: __call__: start")
         works = state["works"]
         timeout = state["timeout"]
 
@@ -104,6 +106,7 @@ class DownloadPDFsNode(IWorkflowNode):
         output = {
             "pdfs": pdfs,
         }
+        logger.trace(f"{self.__class__.__name__}: __call__: end")
         return output
 
 
@@ -123,7 +126,7 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
         self._kwargs = kwargs
 
     def build(self, **kwargs) -> StateGraph:
-        logger.info(":::WORKFLOW BUILD: OpenAlexDownloadWorkflowBuilder:::")
+        logger.trace(f"{self.__class__.__name__}: build: start")
         graph_builder = StateGraph(OpenAlexDownloadState)
         graph_builder.add_node("OpenalexSearch", OpenalexSearchNode(self._works_search_service, self._max_concurrency))
         graph_builder.add_node("DownloadWorks", DownloadWorksNode(self._works_save_service))
@@ -134,6 +137,7 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
         graph_builder.add_edge("DownloadWorks", END)
         graph_builder.add_edge("DownloadPDFs", END)
         graph = graph_builder.compile(**kwargs)
+        logger.trace(f"{self.__class__.__name__}: build: end")
         return graph
 
 

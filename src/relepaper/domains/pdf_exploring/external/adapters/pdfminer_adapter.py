@@ -1,6 +1,7 @@
 # %%
 from pathlib import Path
 
+from loguru import logger
 from pdfminer.high_level import extract_text
 
 from relepaper.domains.pdf_exploring.interfaces import IPDFAdapter
@@ -18,7 +19,10 @@ class PDFMinerAdapter(IPDFAdapter):
         pass
 
     def extract_text(self, pdf_path: Path) -> str:
-        return extract_text(pdf_path)
+        logger.trace("PDFMinerAdapter: extract_text: start")
+        text = extract_text(pdf_path)
+        logger.trace("PDFMinerAdapter: extract_text: end")
+        return text
 
     def extract_images(self, pdf_path: Path) -> list[bytes]:
         pass

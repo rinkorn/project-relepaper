@@ -17,6 +17,7 @@ from relepaper.domains.langgraph.workflows.openalex_download_workflow import (
     OpenAlexDownloadState,
     OpenAlexDownloadWorkflowBuilder,
 )
+from relepaper.domains.langgraph.workflows.pdf_analyser import PDFAnalyserState
 from relepaper.domains.langgraph.workflows.query_interpretator_workflow import (
     QueryInterpretatorState,
     QueryInterpretatorWorkflowBuilder,
@@ -75,7 +76,7 @@ class QueryInterpretatorNode(IWorkflowNode):
         }
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
-        logger.info(":::CALL_QUERY_INTERPRETATOR:::")
+        logger.trace("QueryInterpretatorNode: __call__: start")
         state_input = state["query_interpretator_state"]
         state_input["session"] = state["session"]
         state_input["user_query"] = state["messages"][-1]
@@ -86,6 +87,7 @@ class QueryInterpretatorNode(IWorkflowNode):
         output = {
             "query_interpretator_state": state_output,
         }
+        logger.trace("QueryInterpretatorNode: __call__: end")
         return output
 
 
@@ -138,7 +140,7 @@ class OpenAlexDownloadNode(IWorkflowNode):
         display_graph(self._workflow)
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
-        logger.info(":::CALL_OPENALEX_DOWNLOADER:::")
+        logger.trace("OpenAlexDownloadNode: __call__: start")
         state_input = state["openalex_download_state"]
         state_input["session"] = state["session"]
         state_input["reformulated_queries"] = state["query_interpretator_state"]["reformulated_queries"]
@@ -149,6 +151,7 @@ class OpenAlexDownloadNode(IWorkflowNode):
         output = {
             "openalex_download_state": state_output,
         }
+        logger.trace("OpenAlexDownloadNode: __call__: end")
         return output
 
 
@@ -173,28 +176,27 @@ class RelevanceEvaluatorNode(IWorkflowNode):
         }
         display_graph(self._workflow)
 
-    def __call__(self, state: GeneralWorkflowState) -> dict:
-        logger.info(":::CALL_RELEVANCE_EVALUATOR:::")
+    def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
+        logger.trace("RelevanceEvaluatorNode: __call__: start")
         state_input = state["relevance_evaluator_state"]
         state_input["session"] = state["session"]
         state_input["user_query"] = state["query_interpretator_state"]["user_query"]
         state_input["works"] = state["openalex_download_state"]["works"]
         state_input["pdfs"] = state["openalex_download_state"]["pdfs"]
 
-        logger.info("|" * 100)
         state_output = self._workflow.invoke(input=state_input)
 
         for pdf, extracted_metadata, score in zip(
-            state_output["pdfs"], state_output["pdfs_extracted_metadata"], state_output["relevance_scores"]
+            state_output["pdfs"],
+            state_output["pdfs_metadata_extracted"],
+            state_output["relevance_scores"],
         ):
-            logger.info("-" * 100)
-            logger.info(f"User query: {state_input['user_query']}")
-            logger.info(f"Title: {extracted_metadata.get('extracted_title', '')}")
-            logger.info(f"PDF: {pdf.filename}\n\tscore: {score}")
+            logger.debug(f"User query: {state_input['user_query']}")
+            logger.debug(f"Title: {extracted_metadata.get('extracted_title', '')}")
+            logger.debug(f"PDF: {pdf.filename}\n\tscore: {score}")
 
-        output = {
-            "relevance_evaluator_state": state_output,
-        }
+        output = {"relevance_evaluator_state": state_output}
+        logger.trace("RelevanceEvaluatorNode: __call__: end")
         return output
 
 
@@ -211,8 +213,8 @@ class RelevanceScoreManagerNode(IWorkflowNode):
         }
         display_graph(self._workflow)
 
-    def __call__(self, state: GeneralWorkflowState) -> dict:
-        logger.info(":::CALL_RELEVANCE_SCORE_MANAGER:::")
+    def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
+        logger.trace("RelevanceScoreManagerNode: __call__: start")
         state_input = state["relevance_score_manager_state"]
         state_input["session"] = state["session"]
         state_input["relevance_scores"] = state["relevance_evaluator_state"]["relevance_scores"]
@@ -223,6 +225,7 @@ class RelevanceScoreManagerNode(IWorkflowNode):
         output = {
             "relevance_score_manager_state": state_output,
         }
+        logger.trace("RelevanceScoreManagerNode: __call__: end")
         return output
 
 
@@ -239,6 +242,7 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
         self._relevance_score_manager_node = RelevanceScoreManagerNode(llm=llm)
 
     def build(self, **kwargs) -> StateGraph:
+        logger.trace("GeneralWorkflowBuilder: build: start")
         graph_builder = StateGraph(GeneralWorkflowState)
         graph_builder.add_node("QueryInterpretator", self._query_interpretator_node)
         graph_builder.add_node("OpenAlexDownloader", self._openalex_download_node)
@@ -250,6 +254,7 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
         graph_builder.add_edge("RelevanceEvaluator", "RelevanceScoreManager")
         graph_builder.add_edge("RelevanceScoreManager", END)
         graph = graph_builder.compile(**kwargs)
+        logger.trace("GeneralWorkflowBuilder: build: end")
         return graph
 
 
@@ -313,8 +318,14 @@ if __name__ == "__main__":
             user_query=None,
             works=[],
             pdfs=[],
-            pdfs_extracted_metadata=[],
+            pdfs_metadata_extracted=[],
             relevance_scores=[],
+            pdf_analyser_state=PDFAnalyserState(
+                short_long_pdf_length_threshold=100000,
+                max_chunk_length=100000,
+                max_chunks_count=100,
+                intersection_length=1000,
+            ),
         ),
         relevance_score_manager_state=RelevanceScoreManagerState(
             session=None,

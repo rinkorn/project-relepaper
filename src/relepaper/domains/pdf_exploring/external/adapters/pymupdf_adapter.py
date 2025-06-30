@@ -5,34 +5,43 @@
 from pathlib import Path
 
 import pymupdf
+from loguru import logger
 
 from relepaper.domains.pdf_exploring.interfaces import IPDFAdapter
 
 
 class PyMuPDFAdapter(IPDFAdapter):
     def extract_metadata(self, pdf_path: Path) -> dict:
+        logger.trace("PyMuPDFAdapter: extract_metadata: start")
         doc = pymupdf.open(pdf_path)
         metadata = {**doc.metadata}
         metadata["page_count"] = doc.page_count
+        logger.trace("PyMuPDFAdapter: extract_metadata: end")
         return metadata
 
     def extract_table_of_contents(self, pdf_path: Path) -> dict:
+        logger.trace("PyMuPDFAdapter: extract_table_of_contents: start")
         doc = pymupdf.open(pdf_path)
         table_of_contents = doc.get_toc()
+        logger.trace("PyMuPDFAdapter: extract_table_of_contents: end")
         return table_of_contents
 
     def extract_text(self, pdf_path: Path) -> str:
+        logger.trace("PyMuPDFAdapter: extract_text: start")
         doc = pymupdf.open(pdf_path)
         text = ""
         for page_number in range(doc.page_count):
             text += self.extract_page_text(pdf_path=pdf_path, page_number=page_number)
+        logger.trace("PyMuPDFAdapter: extract_text: end")
         return text
 
     def extract_images(self, pdf_path: Path) -> list[bytes]:
+        logger.trace("PyMuPDFAdapter: extract_images: start")
         doc = pymupdf.open(pdf_path)  # open a document
         out_images = []
         for page_index in range(len(doc)):  # iterate over pdf pages
             out_images.extend(self.extract_page_images(pdf_path=pdf_path, page_number=page_index))
+        logger.trace("PyMuPDFAdapter: extract_images: end")
         return out_images
 
     # def extract_page(self, pdf_path: Path, page_number: int) -> dict:
@@ -41,12 +50,15 @@ class PyMuPDFAdapter(IPDFAdapter):
     #     return page
 
     def extract_page_text(self, pdf_path: Path, page_number: int) -> str:
+        logger.trace("PyMuPDFAdapter: extract_page_text: start")
         doc = pymupdf.open(pdf_path)
         page = doc[page_number]
         tp = page.get_textpage()
+        logger.trace("PyMuPDFAdapter: extract_page_text: end")
         return page.get_text(textpage=tp)
 
     def extract_page_images(self, pdf_path: Path, page_number: int) -> list[bytes]:
+        logger.trace("PyMuPDFAdapter: extract_page_images: start")
         doc = pymupdf.open(pdf_path)
         page = doc[page_number]
         images = page.get_images()
@@ -57,6 +69,7 @@ class PyMuPDFAdapter(IPDFAdapter):
             if pix.n - pix.alpha > 3:  # CMYK: convert to RGB first
                 pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
             out_images.append(pix.tobytes())
+        logger.trace("PyMuPDFAdapter: extract_page_images: end")
         return out_images
 
 
