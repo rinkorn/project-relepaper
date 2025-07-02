@@ -13,8 +13,9 @@ class PDFDocumentService(IService):
 
     def load_pdf_document(self, pdf_path: Path, max_text_length: int = None) -> PDFDocument:
         """Read the content of a PDF file."""
-        logger.trace(f"{self.__class__.__name__}: load_pdf_document: start")
-        logger.info(f"Loading PDF document from {pdf_path}")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+        lg.info(f"Loading PDF document from {pdf_path}")
         metadata = self.pdf_adapter.extract_metadata(pdf_path=pdf_path)
         text = self.pdf_adapter.extract_text(pdf_path=pdf_path)
         # images = self.pdf_adapter.extract_images(pdf_path=pdf_path)
@@ -37,8 +38,8 @@ class PDFDocumentService(IService):
             text=pdf_text,
             # images=pdf_images,
         )
-        logger.success(f"PDF document loaded successfully: {pdf_path}")
-        logger.trace(f"{self.__class__.__name__}: load_pdf_document: end")
+        lg.success(f"PDF document loaded successfully: {pdf_path}")
+        lg.trace("end")
         return pdf_document
 
 

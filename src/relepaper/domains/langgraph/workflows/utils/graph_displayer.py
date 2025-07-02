@@ -95,12 +95,13 @@ class GraphDisplayer(IGraphDisplayer):
         return self
 
     def display(self) -> None:
-        logger.trace("start display")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         try:
             self._strategy.execute(self._workflow)
         except Exception as e:
-            logger.error(f"error: {e}")
-        logger.trace("end display")
+            lg.error(f"error: {e}")
+        lg.trace("end")
 
 
 # %%
@@ -147,7 +148,8 @@ if __name__ == "__main__":
             self._node3 = Node3(llm=llm)
 
         def build(self, **kwargs) -> StateGraph:
-            logger.trace("ExampleWorkflowBuilder: build: start")
+            lg = logger.bind(classname=self.__class__.__name__)
+            lg.trace("start")
             builder = StateGraph(ExampleWorkflowState)
             builder.add_node("node1", self._node1)
             builder.add_node("node2", self._node2)
@@ -157,7 +159,7 @@ if __name__ == "__main__":
             builder.add_edge("node2", "node3")
             builder.add_edge("node3", END)
             compiled_graph = builder.compile(**kwargs)
-            logger.trace("ExampleWorkflowBuilder: build: done")
+            lg.trace("done")
             return compiled_graph
 
     llm = ChatOpenAI(

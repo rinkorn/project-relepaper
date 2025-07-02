@@ -11,7 +11,7 @@ from loguru import logger
 
 from relepaper.domains.langgraph.entities.pdf_content_chunk import PDFContentChunk
 from relepaper.domains.langgraph.entities.pdf_content_splitter import PDFContentSplitter
-from relepaper.domains.langgraph.entities.pdf_length_type import PDFLengthType
+from relepaper.domains.langgraph.entities.pdf_length import PDFLength
 from relepaper.domains.langgraph.entities.pdf_metadata_extracted import PDFMetadataExtracted
 from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowEdge, IWorkflowNode
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
@@ -85,7 +85,8 @@ class PDFMetadataExtractorNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: PDFAnalyserState) -> PDFAnalyserState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         pdf_document = state["pdf_document"]
 
         response_schemas = get_response_schemas()
@@ -115,7 +116,7 @@ class PDFMetadataExtractorNode(IWorkflowNode):
                 year=response["year"],
             ),
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
 
 
@@ -146,18 +147,18 @@ if __name__ == "__main__":
 
 # %%
 class PDFLengthConditionalEdge(IWorkflowEdge):
-    def __call__(self, state: PDFAnalyserState) -> PDFLengthType:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+    def __call__(self, state: PDFAnalyserState) -> PDFLength:
+        logger.bind(classname=self.__class__.__name__).trace("start")
         pdf_document = state["pdf_document"]
         short_long_pdf_length_threshold = state["short_long_pdf_length_threshold"]
-        logger.debug(f"{self.__class__.__name__}: __call__: length of pdf_document: {len(pdf_document)}")
-        logger.debug(f"{self.__class__.__name__}: __call__: short_long_threshold: {short_long_pdf_length_threshold}")
+        logger.bind(classname=self.__class__.__name__).debug(f"Length of pdf_document: {len(pdf_document)}")
+        logger.bind(classname=self.__class__.__name__).debug(f"Short_long_threshold: {short_long_pdf_length_threshold}")
         if len(pdf_document) > short_long_pdf_length_threshold:
-            logger.trace(f"{self.__class__.__name__}: __call__: long_pdf: done")
-            return PDFLengthType.LONG
+            logger.bind(classname=self.__class__.__name__).trace("long_pdf: done")
+            return PDFLength.LONG
         else:
-            logger.trace(f"{self.__class__.__name__}: __call__: short_pdf: done")
-            return PDFLengthType.SHORT
+            logger.bind(classname=self.__class__.__name__).trace("short_pdf: done")
+            return PDFLength.SHORT
 
 
 # %%
@@ -166,12 +167,11 @@ class PDFTextSplitterNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: PDFAnalyserState) -> PDFAnalyserState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
         pdf_document = state["pdf_document"]
         max_chunk_length = state["max_chunk_length"]
         max_chunks_count = state["max_chunks_count"]
         intersection_length = state["intersection_length"]
-
         splitter = PDFContentSplitter(
             pdf_document,
             max_chunk_length=max_chunk_length,
@@ -182,7 +182,7 @@ class PDFTextSplitterNode(IWorkflowNode):
         output = {
             "pdf_chunks": pdf_chunks,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return output
 
 
@@ -192,7 +192,7 @@ class PDFChunksMetadataExtractNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: PDFAnalyserState) -> PDFAnalyserState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
         pdf_document = state["pdf_document"]
         pdf_chunks = state["pdf_chunks"]
         pdf_chunks_metadata_extracted = []
@@ -229,7 +229,7 @@ class PDFChunksMetadataExtractNode(IWorkflowNode):
         output = {
             "pdf_chunks_metadata_extracted": pdf_chunks_metadata_extracted,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return output
 
 
@@ -254,7 +254,7 @@ class PDFChunksMetadataUnionNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: PDFAnalyserState) -> PDFAnalyserState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
         pdf_chunks_metadata_extracted = state["pdf_chunks_metadata_extracted"]
         if len(pdf_chunks_metadata_extracted) == 0:
             raise ValueError("pdf_chunks_metadata_extracted is empty")
@@ -290,7 +290,7 @@ class PDFChunksMetadataUnionNode(IWorkflowNode):
         output = {
             "pdf_metadata_extracted": pdf_metadata_extracted,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return output
 
 
@@ -404,7 +404,7 @@ class PDFAnalyserWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
-        logger.trace(f"{self.__class__.__name__}: build: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
         graph = StateGraph(PDFAnalyserState)
         graph.add_node("pdf_metadata_extract", PDFMetadataExtractorNode(llm=self._llm))
         graph.add_node("pdf_text_splitter", PDFTextSplitterNode(llm=self._llm))
@@ -415,8 +415,8 @@ class PDFAnalyserWorkflowBuilder(IWorkflowBuilder):
             START,
             PDFLengthConditionalEdge(),
             {
-                PDFLengthType.LONG: "pdf_text_splitter",
-                PDFLengthType.SHORT: "pdf_metadata_extract",
+                PDFLength.LONG: "pdf_text_splitter",
+                PDFLength.SHORT: "pdf_metadata_extract",
             },
         )
         graph.add_edge("pdf_metadata_extract", END)
@@ -424,7 +424,7 @@ class PDFAnalyserWorkflowBuilder(IWorkflowBuilder):
         graph.add_edge("pdf_chunks_metadata_extract", "pdf_chunks_metadata_union")
         graph.add_edge("pdf_chunks_metadata_union", END)
         compiled_graph = graph.compile()
-        logger.trace(f"{self.__class__.__name__}: build: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return compiled_graph
 
 
@@ -530,12 +530,12 @@ if __name__ == "__main__":
         }
         state_end = workflow.invoke(input=state_start)
         pprint(state_end["pdf_metadata_extracted"])
-        print(f"length of pdf_document: {len(state_end['pdf_document'])}")
-        print(f"short_long_pdf_length_threshold: {state_end['short_long_pdf_length_threshold']}")
-        print(f"chunks count: {len(state_end['pdf_chunks'])}")
-        print(f"intersection_length: {state_end['intersection_length']}")
-        print(f"max_chunk_length: {state_end['max_chunk_length']}")
-        print(f"max_chunks_count: {state_end['max_chunks_count']}")
+        print(f"Length of pdf_document: {len(state_end['pdf_document'])}")
+        print(f"Short_long_pdf_length_threshold: {state_end['short_long_pdf_length_threshold']}")
+        print(f"Chunks count: {len(state_end['pdf_chunks'])}")
+        print(f"Intersection_length: {state_end['intersection_length']}")
+        print(f"Max_chunk_length: {state_end['max_chunk_length']}")
+        print(f"Max_chunks_count: {state_end['max_chunks_count']}")
         print("-" * 100)
 
 

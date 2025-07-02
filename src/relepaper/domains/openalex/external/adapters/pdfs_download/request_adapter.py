@@ -1,13 +1,11 @@
-import logging
 import re
 
 import requests
 from fake_useragent import UserAgent
+from loguru import logger
 
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.openalex.external.interfaces import IAdapter
-
-logger = logging.getLogger(__name__)
 
 
 class RequestsPDFDownloadAdapter(IAdapter):
@@ -17,6 +15,9 @@ class RequestsPDFDownloadAdapter(IAdapter):
         timeout: int = 60,
     ) -> None:
         """Function to perform GET request with User-Agent spoofing"""
+
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
 
         ua = UserAgent(
             browsers=["chrome", "firefox", "safari"],
@@ -33,7 +34,7 @@ class RequestsPDFDownloadAdapter(IAdapter):
         try:
             response = requests.get(url=openalex_pdf.url, headers=headers, timeout=timeout)
         except Exception as e:
-            logger.error(f"Error requesting pdf: {e}")
+            lg.error(f"Error requesting pdf: {e}")
 
         if response.status_code == 200:
             content_disposition = response.headers.get("content-disposition", None)
@@ -47,7 +48,8 @@ class RequestsPDFDownloadAdapter(IAdapter):
             openalex_pdf.filename = fname
             openalex_pdf.strategy = PDFDownloadStrategy.REQUESTS
         else:
-            logger.error(f"Error status code: {response.status_code}")
+            lg.error(f"Error status code: {response.status_code}")
+        lg.trace("end")
 
 
 # %%

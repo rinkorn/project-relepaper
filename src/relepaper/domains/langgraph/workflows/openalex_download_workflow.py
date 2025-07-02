@@ -35,7 +35,8 @@ class OpenalexSearchNode(IWorkflowNode):
         self._max_concurrency = max_concurrency
 
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         reformulated_queries = state["reformulated_queries"]
         per_page_works = state["per_page_works"]
 
@@ -43,7 +44,7 @@ class OpenalexSearchNode(IWorkflowNode):
 
         # Поиск с сохранением связи запрос -> works
         for query_index, query in enumerate(reformulated_queries):
-            logger.info(f"Searching for query {query_index}: {query}")
+            lg.info(f"Searching for query {query_index}: {query}")
 
             # query_uuid = str(uuid.uuid4().hex)
             query_works = self._works_search_service.search_works(
@@ -58,14 +59,14 @@ class OpenalexSearchNode(IWorkflowNode):
                 work.source_query_index = query_index
                 work.found_at = current_time
 
-            logger.info(f"Found {len(query_works)} works for query {query_index}")
+            lg.info(f"Found {len(query_works)} works for query {query_index}")
             all_works.extend(query_works)
 
-        logger.info(f"Total works found: {len(all_works)}")
+        lg.info(f"Total works found: {len(all_works)}")
         output = {
             "works": all_works,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
 
 
@@ -74,11 +75,12 @@ class DownloadWorksNode(IWorkflowNode):
         self._works_save_service = works_save_service
 
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         works = state["works"]
         self._works_save_service.save_works(works)
         output = {}
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
 
 
@@ -87,12 +89,13 @@ class DownloadPDFsNode(IWorkflowNode):
         self._download_pdfs_service = download_pdfs_service
 
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         works = state["works"]
         timeout = state["timeout"]
 
         works_with_pdf = [w for w in works if w.pdf_url]
-        logger.info(f"works with url-pdfs for downloading: {len(works_with_pdf)}")
+        lg.info(f"Works with url-pdfs for downloading: {len(works_with_pdf)}")
         pdfs = self._download_pdfs_service.download_from_works(works_with_pdf, timeout=timeout)
 
         # Связываем PDF с исходными запросами через work
@@ -101,11 +104,11 @@ class DownloadPDFsNode(IWorkflowNode):
             pdf.source_work_id = work.id
             pdf.source_query_index = work.source_query_index
 
-        logger.info(f"downloaded pdfs: {len(pdfs)}")
+        lg.info(f"Downloaded pdfs: {len(pdfs)}")
         output = {
             "pdfs": pdfs,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
 
 
@@ -125,7 +128,8 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
         self._kwargs = kwargs
 
     def build(self, **kwargs) -> StateGraph:
-        logger.trace(f"{self.__class__.__name__}: build: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         graph_builder = StateGraph(OpenAlexDownloadState)
         graph_builder.add_node("OpenalexSearch", OpenalexSearchNode(self._works_search_service, self._max_concurrency))
         graph_builder.add_node("DownloadWorks", DownloadWorksNode(self._works_save_service))
@@ -136,7 +140,7 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
         graph_builder.add_edge("DownloadWorks", END)
         graph_builder.add_edge("DownloadPDFs", END)
         graph = graph_builder.compile(**kwargs)
-        logger.trace(f"{self.__class__.__name__}: build: end")
+        lg.trace("end")
         return graph
 
 

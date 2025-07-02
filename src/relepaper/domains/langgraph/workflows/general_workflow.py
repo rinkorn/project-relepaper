@@ -13,7 +13,12 @@ from loguru import logger
 
 from relepaper.domains.langgraph.entities.relevance_decision import Threshold
 from relepaper.domains.langgraph.entities.session import Session
-from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowNode
+from relepaper.domains.langgraph.interfaces import (
+    IStrategy,
+    IWorkflowBuilder,
+    IWorkflowEdge,
+    IWorkflowNode,
+)
 from relepaper.domains.langgraph.workflows.openalex_download_workflow import (
     OpenAlexDownloadState,
     OpenAlexDownloadWorkflowBuilder,
@@ -30,6 +35,12 @@ from relepaper.domains.langgraph.workflows.relevance_evaluator import (
 from relepaper.domains.langgraph.workflows.relevance_manager import (
     RelevanceManagerState,
     RelevanceManagerWorkflowBuilder,
+)
+from relepaper.domains.langgraph.workflows.repeat_manager import (
+    NotRelevantAndRepeatDecisionStrategy,
+    RepeaterState,
+    RepeaterWorkflowBuilder,
+    RepeatStatus,
 )
 from relepaper.domains.openalex.entities.pdf import PDFDownloadStrategy
 from relepaper.domains.openalex.external.adapters.works_search.factory import (
@@ -51,16 +62,16 @@ class GeneralWorkflowState(TypedDict):
     openalex_download_state: OpenAlexDownloadState
     relevance_evaluator_state: RelevanceEvaluatorState
     relevance_manager_state: RelevanceManagerState
+    repeater_state: RepeaterState
 
 
 # %%
-class QueryInterpretatorNode(IWorkflowNode):
+class QueryInterpretatorSubgraph(IWorkflowNode):
     def __init__(
         self,
         llm: BaseChatModel,
         workflow_builder: QueryInterpretatorWorkflowBuilder = None,
-        max_concurrency: int = 2,
-        max_retries: int = 5,
+        config: dict = {},
     ):
         if workflow_builder is None:
             workflow_builder = QueryInterpretatorWorkflowBuilder(llm=llm)
@@ -70,14 +81,15 @@ class QueryInterpretatorNode(IWorkflowNode):
 
         self._config = {
             "configurable": {
-                "max_concurrency": max_concurrency,
-                "max_retries": max_retries,
-                "thread_id": uuid.uuid4().hex,
+                "max_concurrency": config.get("max_concurrency", 2),
+                "max_retries": config.get("max_retries", 5),
+                "thread_id": config.get("thread_id", uuid.uuid4().hex),
             },
         }
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
-        logger.trace("QueryInterpretatorNode: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         state_input = state["query_interpretator_state"]
         state_input["session"] = state["session"]
         state_input["user_query"] = state["messages"][-1]
@@ -88,20 +100,19 @@ class QueryInterpretatorNode(IWorkflowNode):
         output = {
             "query_interpretator_state": state_output,
         }
-        logger.trace("QueryInterpretatorNode: __call__: end")
+        lg.trace("end")
         return output
 
 
 # %%
-class OpenAlexDownloadNode(IWorkflowNode):
+class OpenAlexDownloadSubgraph(IWorkflowNode):
     def __init__(
         self,
         workflow_builder: OpenAlexDownloadWorkflowBuilder = None,
         works_save_service: OpenAlexWorksSaveService = None,
         works_search_service: OpenAlexWorksSearchService = None,
         download_pdfs_service: OpenAlexPdfDownloadService = None,
-        max_concurrency: int = 2,
-        max_retries: int = 5,
+        config: dict = {},
     ):
         if works_save_service is None:
             works_save_service = OpenAlexWorksSaveService(
@@ -128,21 +139,22 @@ class OpenAlexDownloadNode(IWorkflowNode):
                 works_save_service=works_save_service,
                 works_search_service=works_search_service,
                 download_pdfs_service=download_pdfs_service,
-                max_concurrency=max_concurrency,
+                max_concurrency=config.get("max_concurrency", 2),
             )
         self._workflow = workflow_builder.build(checkpointer=InMemorySaver())
         self._config = {
             "configurable": {
-                "max_concurrency": max_concurrency,
-                "max_retries": 5,
-                "thread_id": uuid.uuid4().hex,
+                "max_concurrency": config.get("max_concurrency", 2),
+                "max_retries": config.get("max_retries", 5),
+                "thread_id": config.get("thread_id", uuid.uuid4().hex),
             },
         }
         displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
         displayer.display()
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
-        logger.trace("OpenAlexDownloadNode: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         state_input = state["openalex_download_state"]
         state_input["session"] = state["session"]
         state_input["reformulated_queries"] = state["query_interpretator_state"]["reformulated_queries"]
@@ -153,34 +165,34 @@ class OpenAlexDownloadNode(IWorkflowNode):
         output = {
             "openalex_download_state": state_output,
         }
-        logger.trace("OpenAlexDownloadNode: __call__: end")
+        lg.trace("end")
         return output
 
 
 # %%
-class RelevanceEvaluatorNode(IWorkflowNode):
+class RelevanceEvaluatorSubgraph(IWorkflowNode):
     def __init__(
         self,
         llm: BaseChatModel,
         workflow_builder: RelevanceEvaluatorWorkflowBuilder = None,
-        max_concurrency: int = 2,
-        max_retries: int = 5,
+        config: dict = {},
     ):
         if workflow_builder is None:
             workflow_builder = RelevanceEvaluatorWorkflowBuilder(llm=llm)
         self._workflow = workflow_builder.build(checkpointer=InMemorySaver())
         self._config = {
             "configurable": {
-                "max_concurrency": max_concurrency,
-                "max_retries": max_retries,
-                "thread_id": uuid.uuid4().hex,
+                "max_concurrency": config.get("max_concurrency", 2),
+                "max_retries": config.get("max_retries", 5),
+                "thread_id": config.get("thread_id", uuid.uuid4().hex),
             },
         }
         displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
         displayer.display()
 
     def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
-        logger.trace("RelevanceEvaluatorNode: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         state_input = state["relevance_evaluator_state"]
         state_input["session"] = state["session"]
         state_input["user_query"] = state["query_interpretator_state"]["user_query"]
@@ -199,26 +211,27 @@ class RelevanceEvaluatorNode(IWorkflowNode):
             logger.debug(f"PDF: {pdf.filename}\n\tscore: {score}")
 
         output = {"relevance_evaluator_state": state_output}
-        logger.trace("RelevanceEvaluatorNode: __call__: end")
+        lg.trace("end")
         return output
 
 
 # %%
-class RelevanceManagerNode(IWorkflowNode):
-    def __init__(self, llm: BaseChatModel, max_concurrency: int = 2, max_retries: int = 5):
+class RelevanceManagerSubgraph(IWorkflowNode):
+    def __init__(self, llm: BaseChatModel, config: dict = {}):
         self._workflow = RelevanceManagerWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
         self._config = {
             "configurable": {
-                "max_concurrency": max_concurrency,
-                "max_retries": max_retries,
-                "thread_id": uuid.uuid4().hex,
+                "max_concurrency": config.get("max_concurrency", 2),
+                "max_retries": config.get("max_retries", 5),
+                "thread_id": config.get("thread_id", uuid.uuid4().hex),
             },
         }
         displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
         displayer.display()
 
     def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         state_input = state["relevance_manager_state"]
         state_input["session"] = state["session"]
         state_input["relevance_scores"] = state["relevance_evaluator_state"]["relevance_scores"]
@@ -229,8 +242,53 @@ class RelevanceManagerNode(IWorkflowNode):
         output = {
             "relevance_manager_state": state_output,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
+
+
+# %%
+class RepeaterSubgraph(IWorkflowNode):
+    def __init__(
+        self,
+        repeate_strategy: IStrategy = NotRelevantAndRepeatDecisionStrategy(),
+        config: dict = {},
+    ):
+        self._workflow = RepeaterWorkflowBuilder(repeate_strategy=repeate_strategy).build(checkpointer=InMemorySaver())
+        self._config = {
+            "configurable": {
+                "max_concurrency": config.get("max_concurrency", 2),
+                "max_retries": config.get("max_retries", 5),
+                "thread_id": uuid.uuid4().hex,
+            },
+        }
+        displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
+        displayer.display()
+
+    def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+        state_input = state["repeater_state"]
+        state_input["session"] = state["session"]
+        state_input["relevance_decision"] = state["relevance_manager_state"]["relevance_decision"]
+        state_output = self._workflow.invoke(input=state_input, config=self._config)
+        output = {"repeater_state": state_output}
+        lg.trace("end")
+        return output
+
+
+# %%
+class RouteConditionEdge(IWorkflowEdge):
+    def __call__(self, state: GeneralWorkflowState) -> RepeatStatus:
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+        repeat_status = state["repeater_state"]["repeat_status"]
+        max_repetitions = state["repeater_state"]["max_repetitions"]
+        current_repetition = state["repeater_state"]["current_repetition"]
+        lg.debug(f"max_repetitions: {max_repetitions}")
+        lg.debug(f"current_repetition: {current_repetition}")
+        lg.debug(f"repeat_status: {repeat_status}")
+        lg.trace("end")
+        return repeat_status
 
 
 # %%
@@ -238,27 +296,39 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
     def __init__(
         self,
         llm: BaseChatModel,
+        config: dict = {},
     ):
         self._llm = llm
-        self._query_interpretator_node = QueryInterpretatorNode(llm=llm)
-        self._openalex_download_node = OpenAlexDownloadNode()
-        self._relevance_evaluator_node = RelevanceEvaluatorNode(llm=llm)
-        self._relevance_manager_node = RelevanceManagerNode(llm=llm)
+        self._query_interpretator_subgraph = QueryInterpretatorSubgraph(llm=llm, config=config)
+        self._openalex_download_subgraph = OpenAlexDownloadSubgraph(config=config)
+        self._relevance_evaluator_subgraph = RelevanceEvaluatorSubgraph(llm=llm, config=config)
+        self._relevance_manager_subgraph = RelevanceManagerSubgraph(llm=llm, config=config)
+        self._repeater_subgraph = RepeaterSubgraph(config=config)
 
     def build(self, **kwargs) -> StateGraph:
-        logger.trace("GeneralWorkflowBuilder: build: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("build: start")
         graph_builder = StateGraph(GeneralWorkflowState)
-        graph_builder.add_node("QueryInterpretator", self._query_interpretator_node)
-        graph_builder.add_node("OpenAlexDownloader", self._openalex_download_node)
-        graph_builder.add_node("RelevanceEvaluator", self._relevance_evaluator_node)
-        graph_builder.add_node("RelevanceManager", self._relevance_manager_node)
+        graph_builder.add_node("QueryInterpretator", self._query_interpretator_subgraph)
+        graph_builder.add_node("OpenAlexDownloader", self._openalex_download_subgraph)
+        graph_builder.add_node("RelevanceEvaluator", self._relevance_evaluator_subgraph)
+        graph_builder.add_node("RelevanceManager", self._relevance_manager_subgraph)
+        graph_builder.add_node("Repeater", self._repeater_subgraph)
         graph_builder.add_edge(START, "QueryInterpretator")
         graph_builder.add_edge("QueryInterpretator", "OpenAlexDownloader")
         graph_builder.add_edge("OpenAlexDownloader", "RelevanceEvaluator")
         graph_builder.add_edge("RelevanceEvaluator", "RelevanceManager")
-        graph_builder.add_edge("RelevanceManager", END)
+        graph_builder.add_edge("RelevanceManager", "Repeater")
+        graph_builder.add_conditional_edges(
+            "Repeater",
+            RouteConditionEdge(),
+            {
+                RepeatStatus.REPEAT: "QueryInterpretator",
+                RepeatStatus.STOP: END,
+            },
+        )
         graph = graph_builder.compile(**kwargs)
-        logger.trace("GeneralWorkflowBuilder: build: end")
+        lg.trace("build: end")
         return graph
 
 
@@ -310,7 +380,7 @@ if __name__ == "__main__":
             user_query=None,
             main_topic="",
             context_for_queries="",
-            reformulated_queries_quantity=10,
+            reformulated_queries_quantity=3,
             reformulated_queries=[],
             comment=None,
         ),
@@ -319,7 +389,7 @@ if __name__ == "__main__":
             reformulated_queries=[],
             works=[],
             pdfs=[],
-            per_page_works=5,
+            per_page_works=3,
             timeout=60,
         ),
         relevance_evaluator_state=RelevanceEvaluatorState(
@@ -334,8 +404,8 @@ if __name__ == "__main__":
                 pdf_metadata_extracted=None,
                 pdf_chunks=[],
                 pdf_chunks_metadata_extracted=[],
-                short_long_pdf_length_threshold=135000,
-                max_chunk_length=135000,
+                short_long_pdf_length_threshold=200000,
+                max_chunk_length=200000,
                 max_chunks_count=10,
                 intersection_length=1000,
             ),
@@ -346,6 +416,13 @@ if __name__ == "__main__":
             mean_score_overall_pdfs=None,
             decision_threshold=Threshold(value=50),
             relevance_decision=None,
+        ),
+        repeater_state=RepeaterState(
+            session=None,
+            relevance_decision=None,
+            repeat_status=None,
+            current_repetition=1,
+            max_repetitions=3,
         ),
     )
     config = {
@@ -363,8 +440,8 @@ if __name__ == "__main__":
     pprint(state_end["openalex_download_state"]["pdfs"])
     print(f"relevance_scores: \n\t{state_end['relevance_evaluator_state']['relevance_scores']}")
     for container in state_end["relevance_evaluator_state"]["relevance_scores"]:
-        print(f"mean: {container.mean}")
-    print(f"mean_score_overall_pdfs: {state_end['relevance_manager_state']['mean_score_overall_pdfs']}")
+        print(f"mean: {container.mean: .2f}")
+    print(f"mean_score_overall_pdfs: {state_end['relevance_manager_state']['mean_score_overall_pdfs']:.2f}")
     print(f"decision: \n\t{state_end['relevance_manager_state']['relevance_decision']}")
 
     # state_history = [sh for sh in general_workflow.get_state_history(config)]

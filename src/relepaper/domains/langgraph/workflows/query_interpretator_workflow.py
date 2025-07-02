@@ -391,8 +391,11 @@ class ContextMaker3Node(IWorkflowNode):
         self._chain = chain
 
     def __call__(self, state: QueryInterpretatorState) -> QueryInterpretatorState:
-        logger.info(":::NODE: ReformulateQuery:::")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         user_query = state.get("user_query")
+        lg.debug(f"User query: {user_query}")
+
         if isinstance(user_query, str):
             user_query = HumanMessage(content=user_query)
         elif isinstance(user_query, BaseMessage):
@@ -410,6 +413,7 @@ class ContextMaker3Node(IWorkflowNode):
             "context_for_queries": response["context_for_queries"],
             "comment": response["comment"],
         }
+        lg.trace("end")
         return output
 
 
@@ -582,7 +586,8 @@ class QueryReformulator2Node(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: QueryInterpretatorState) -> dict:
-        logger.info(":::NODE: QueryReformulator:::")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         user_query_str = state.get("user_query").content
         context_for_queries = state.get("context_for_queries")
         reformulated_queries_quantity = state.get("reformulated_queries_quantity", 10)
@@ -674,7 +679,7 @@ class QueryReformulator2Node(IWorkflowNode):
                 "format_instructions": format_instructions,
             },
         )
-        logger.info(prompt)
+        lg.trace(prompt)
         chain = prompt | self._llm | output_parser
         response = chain.invoke(
             {
@@ -683,10 +688,11 @@ class QueryReformulator2Node(IWorkflowNode):
                 "reformulated_queries_quantity": reformulated_queries_quantity,
             }
         )
-        logger.info(response)
+        lg.trace(response)
         output = {
             "reformulated_queries": response["reformulated_queries"],
         }
+        lg.trace("end")
         return output
 
 
@@ -728,7 +734,8 @@ class QueryInterpretatorWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
-        logger.trace("QueryInterpretatorWorkflowBuilder: build: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         graph_builder = StateGraph(QueryInterpretatorState)
         graph_builder.add_node("ContextMaker", ContextMaker3Node(self._llm))
         graph_builder.add_node("QueryReformulator", QueryReformulator2Node(self._llm))
@@ -736,7 +743,7 @@ class QueryInterpretatorWorkflowBuilder(IWorkflowBuilder):
         graph_builder.add_edge("ContextMaker", "QueryReformulator")
         graph_builder.add_edge("QueryReformulator", END)
         graph = graph_builder.compile(**kwargs)
-        logger.trace("QueryInterpretatorWorkflowBuilder: build: done")
+        lg.trace("done")
         return graph
 
 

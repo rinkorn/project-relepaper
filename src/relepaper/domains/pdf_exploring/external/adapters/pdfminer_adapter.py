@@ -19,9 +19,10 @@ class PDFMinerAdapter(IPDFAdapter):
         pass
 
     def extract_text(self, pdf_path: Path) -> str:
-        logger.trace("PDFMinerAdapter: extract_text: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         text = extract_text(pdf_path)
-        logger.trace("PDFMinerAdapter: extract_text: end")
+        lg.trace("end")
         return text
 
     def extract_images(self, pdf_path: Path) -> list[bytes]:

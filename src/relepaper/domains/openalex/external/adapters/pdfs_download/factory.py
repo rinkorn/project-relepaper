@@ -1,5 +1,5 @@
 # %%
-import logging
+from loguru import logger
 
 from relepaper.domains.openalex.entities.pdf import PDFDownloadStrategy
 from relepaper.domains.openalex.external.adapters.pdfs_download.request_adapter import RequestsPDFDownloadAdapter
@@ -8,8 +8,6 @@ from relepaper.domains.openalex.external.adapters.pdfs_download.selenium_stealth
     SeleniumStealthPDFDownloadAdapter,
 )
 from relepaper.domains.openalex.external.interfaces import IAdapter, IAdapterFactory
-
-logger = logging.getLogger(__name__)
 
 
 # %%

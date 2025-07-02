@@ -54,9 +54,9 @@
 		{
 			"id": "pointer:pointer",
 			"typeName": "pointer",
-			"x": -780.3855352393157,
-			"y": 461.7348324876343,
-			"lastActivityTimestamp": 1751381417933,
+			"x": 1622.480209856149,
+			"y": 514.8900295720592,
+			"lastActivityTimestamp": 1751489268261,
 			"meta": {}
 		},
 		{
@@ -562,9 +562,9 @@
 			"typeName": "binding"
 		},
 		{
-			"x": 1061.0274211999179,
-			"y": 727.7298502818433,
-			"z": 0.4256116022744787,
+			"x": 2.5930635079413586,
+			"y": 175.5617351807131,
+			"z": 0.6635651060293543,
 			"meta": {},
 			"id": "camera:page:page",
 			"typeName": "camera"
@@ -1155,12 +1155,12 @@
 			"typeName": "binding"
 		},
 		{
-			"editingShapeId": null,
+			"editingShapeId": "shape:192mxer7GLIY2IRNftMBR",
 			"croppingShapeId": null,
 			"selectedShapeIds": [
-				"shape:SHy6XVXHedmSn3fSE3_ek"
+				"shape:192mxer7GLIY2IRNftMBR"
 			],
-			"hoveredShapeId": null,
+			"hoveredShapeId": "shape:192mxer7GLIY2IRNftMBR",
 			"erasingShapeIds": [],
 			"hintingShapeIds": [],
 			"focusedGroupId": null,
@@ -1216,7 +1216,7 @@
 			"id": "shape:963qjkX6NDqeR7t_Hj824",
 			"type": "geo",
 			"props": {
-				"w": 289.9947814941406,
+				"w": 289.9969482421875,
 				"h": 174.98237056653534,
 				"geo": "rectangle",
 				"color": "green",
@@ -1253,7 +1253,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Dict(pdf_path, relevance_score)"
+									"text": "Dict(pdf_path, relevance_scores)"
 								}
 							]
 						}
@@ -2463,7 +2463,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "Relevance Manager/Judge"
+									"text": "Relevance Manager"
 								}
 							]
 						},
@@ -2789,8 +2789,8 @@
 			"typeName": "shape"
 		},
 		{
-			"x": 1439.4709521524626,
-			"y": 391.8728011038809,
+			"x": 1451.1789863727042,
+			"y": 403.6463255538756,
 			"rotation": 0,
 			"isLocked": false,
 			"opacity": 1,
@@ -2823,7 +2823,7 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "original_query str,"
+									"text": "user_query str,"
 								}
 							]
 						},
@@ -2847,7 +2847,19 @@
 							"content": [
 								{
 									"type": "text",
-									"text": "pdf List(pdf_paths)"
+									"text": "works List(path)"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"attrs": {
+								"dir": "auto"
+							},
+							"content": [
+								{
+									"type": "text",
+									"text": "pdfs List(path)"
 								}
 							]
 						}
@@ -2992,7 +3004,7 @@
 			"brush": null,
 			"scribbles": [],
 			"cursor": {
-				"type": "move",
+				"type": "default",
 				"rotation": 0
 			},
 			"isFocusMode": false,
@@ -3002,7 +3014,7 @@
 			"screenBounds": {
 				"x": 0,
 				"y": 0,
-				"w": 963.1943969726562,
+				"w": 1547.9166259765625,
 				"h": 941.6666259765625
 			},
 			"insets": [

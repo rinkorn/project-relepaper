@@ -53,14 +53,15 @@ class RelevanceManagerState(TypedDict):
 # %%
 class RelevanceThresholdDecisionStrategy(IStrategy):
     def __call__(self, state: RelevanceManagerState) -> dict:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         relevance_scores = state["relevance_scores"]
         decision_threshold = state["decision_threshold"]
 
         mean_scores = [container.mean for container in relevance_scores]
         mean_score = sum(mean_scores) / len(mean_scores) if len(mean_scores) > 0 else 0
-        logger.debug(f"mean_scores: {mean_scores}")
-        logger.debug(f"mean score overall pdfs: {mean_score:.2f}")
+        lg.debug(f"mean_scores: {mean_scores}")
+        lg.debug(f"mean score overall pdfs: {mean_score:.2f}")
 
         if mean_score >= decision_threshold.value:
             conclusion = RelevanceStatus.RELEVANT
@@ -75,12 +76,12 @@ class RelevanceThresholdDecisionStrategy(IStrategy):
                 f"The conclusion is {conclusion.value}."
             ),
         )
-        logger.info(f"{self.__class__.__name__}: conclusion: {decision.status}")
+        lg.info(f"conclusion: {decision.status}")
         output = {
             "mean_score_overall_pdfs": mean_score,
             "relevance_decision": decision,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
 
 
@@ -89,13 +90,14 @@ class RelevanceLLMDecisionStrategy(IStrategy):
         self._llm = llm
 
     def __call__(self, state: RelevanceManagerState) -> dict:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         relevance_scores = state["relevance_scores"]
         decision_threshold = state["decision_threshold"]
         mean_scores = [container.mean for container in relevance_scores]
         mean_score = sum(mean_scores) / len(mean_scores)
-        logger.debug(f"mean scores by pdfs: {mean_scores}")
-        logger.debug(f"mean score overall pdfs: {mean_score:.2f}")
+        lg.debug(f"mean scores by pdfs: {mean_scores}")
+        lg.debug(f"mean score overall pdfs: {mean_score:.2f}")
 
         prompt_template = get_prompt_template()
         response_schemas = get_response_schemas()
@@ -115,17 +117,17 @@ class RelevanceLLMDecisionStrategy(IStrategy):
                 "decision_threshold": decision_threshold.value,
             }
         )
-        logger.info(f"{self.__class__.__name__}: response: {response}")
+        lg.info(f"response: {response}")
         decision = RelevanceDecision(
             status=RelevanceStatus(response["decision"]),
             comment="LLM made the decision by using the mean score overall pdfs and the decision threshold",
         )
-        logger.info(f"{self.__class__.__name__}: conclusion: {decision.status}")
+        lg.info(f"conclusion: {decision.status}")
         output = {
             "mean_score_overall_pdfs": mean_score,
             "relevance_decision": decision,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        lg.trace("end")
         return output
 
 
@@ -141,15 +143,17 @@ class RelevanceDecisionNode(IWorkflowNode):
         return self
 
     def __call__(self, state: RelevanceManagerState) -> RelevanceManagerState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
-        logger.debug(f"{self.__class__.__name__}: decision_strategy: {self._decision_strategy.__class__.__name__}")
-        state_output = self._decision_strategy(state)
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+        lg.debug(f"decision_strategy: {self._decision_strategy.__class__.__name__}")
 
+        state_output = self._decision_strategy(state)
         output = {
             "mean_score_overall_pdfs": state_output["mean_score_overall_pdfs"],
             "relevance_decision": state_output["relevance_decision"],
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+
+        lg.trace("end")
         return output
 
 
@@ -160,13 +164,14 @@ class RelevanceManagerWorkflowBuilder(IWorkflowBuilder):
         self._relevance_node = RelevanceDecisionNode(strategy=decision_strategy)
 
     def build(self, **kwargs) -> StateGraph:
-        logger.trace(f"{self.__class__.__name__}: build: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         graph_builder = StateGraph(RelevanceManagerState)
         graph_builder.add_node("RelevanceManager", self._relevance_node)
         graph_builder.add_edge(START, "RelevanceManager")
         graph_builder.add_edge("RelevanceManager", END)
         graph = graph_builder.compile(**kwargs)
-        logger.trace(f"{self.__class__.__name__}: build: end")
+        lg.trace("end")
         return graph
 
 

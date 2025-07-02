@@ -1,15 +1,14 @@
-import logging
 from pathlib import Path
 from pprint import pprint
 from typing import List
+
+from loguru import logger
 
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.openalex.entities.work import OpenAlexWork
 from relepaper.domains.openalex.external.adapters.pdfs_download.factory import PDFDownloadAdapterFactory
 from relepaper.domains.openalex.external.interfaces import IAdapter
 from relepaper.domains.openalex.services.interfaces import IService
-
-logger = logging.getLogger(__name__)
 
 
 class OpenAlexPdfDownloadService(IService):
@@ -37,18 +36,21 @@ class OpenAlexPdfDownloadService(IService):
         Returns:
             OpenAlexPDF object
         """
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         openalex_pdf = OpenAlexPDF(
             url=work.pdf_url,
             dirname=self._dirname,
             strategy=self._strategy,
         )
         if not openalex_pdf:
-            logger.error(f"OpenAlexPDF is not valid: {openalex_pdf}")
+            lg.error(f"OpenAlexPDF is not valid: {openalex_pdf}")
             return None
         self._adapter.download(
             openalex_pdf,
             timeout=timeout,
         )
+        lg.trace("end")
         return openalex_pdf
 
     def download_from_url(
@@ -64,18 +66,21 @@ class OpenAlexPdfDownloadService(IService):
             OpenAlexPDF object
         """
 
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         openalex_pdf = OpenAlexPDF(
             url=url,
             dirname=self._dirname,
             strategy=self._strategy,
         )
         if not openalex_pdf:
-            logger.error(f"OpenAlexPDF is not valid: {openalex_pdf}")
+            lg.error(f"OpenAlexPDF is not valid: {openalex_pdf}")
             return None
         self._adapter.download(
             openalex_pdf,
             timeout=timeout,
         )
+        lg.trace("end")
         return openalex_pdf
 
     def download_from_works(
@@ -93,7 +98,11 @@ class OpenAlexPdfDownloadService(IService):
         Returns:
             List of OpenAlexPDF objects
         """
-        return [self.download_from_work(work, timeout) for work in works]
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+        openalex_pdfs = [self.download_from_work(work, timeout) for work in works]
+        lg.trace("end")
+        return openalex_pdfs
 
     def download_from_urls(
         self,
@@ -107,7 +116,11 @@ class OpenAlexPdfDownloadService(IService):
         Returns:
             List of OpenAlexPDF objects
         """
-        return [self.download_from_url(url, timeout) for url in urls]
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+        openalex_pdfs = [self.download_from_url(url, timeout) for url in urls]
+        lg.trace("end")
+        return openalex_pdfs
 
 
 # from concurrent.futures import ThreadPoolExecutor

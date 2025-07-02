@@ -3,12 +3,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from relepaper.config.constants import (
-    FILE_LOG_LEVEL,
-    LOG_DIR,
-    LOG_FORMAT,
-    STREAM_LOG_LEVEL,
-)
+from relepaper.config.constants import LOG_DIR
 
 """
 ## The log levels
@@ -36,24 +31,44 @@ thread | The thread in which the logging call was made | name, id (default)
 time | The aware local time when the logging call was made | See datetime.datetime
 """
 
+__all__ = ["setup_logger"]
+
+_DEFAULT_STREAM_LOG_LEVEL = "INFO"
+_DEFAULT_FILE_LOG_LEVEL = "DEBUG"
+_DEFAULT_STREAM_FORMATTER = (
+    "<g>{time:YYYY-MM-DD HH:mm:ss.SSSS}</g> "
+    "| <lvl>{level}</lvl> "
+    "| <lvl>{extra[classname]}:{function}:{line}</lvl> "
+    "| {message}"
+)
+_DEFAULT_LOG_FORMATTER = (
+    "<g>{time:YYYY-MM-DD HH:mm:ss.SSSS}</g> "
+    "| <lvl>{level}</lvl> "
+    "| <lvl>{name}:{extra[classname]}:{function}:{line}</lvl> "
+    "| {message}"
+)
+_DEFAULT_EXTRA = {"classname": ""}
+
 
 def setup_logger(
-    stream_level: str = STREAM_LOG_LEVEL,
-    stream_formatter: str = LOG_FORMAT,
+    stream_level: str = _DEFAULT_STREAM_LOG_LEVEL,
+    stream_formatter: str = _DEFAULT_STREAM_FORMATTER,
     use_file: bool = False,
     path: Path = LOG_DIR,
-    file_level: str = FILE_LOG_LEVEL,  # INFO, DEBUG, TRACE, etc.
-    file_formatter: str = LOG_FORMAT,
+    file_level: str = _DEFAULT_FILE_LOG_LEVEL,  # INFO, DEBUG, TRACE, etc.
+    file_formatter: str = _DEFAULT_LOG_FORMATTER,
     max_bytes: int = 10 * 1024 * 1024,  # 10 MB
     backup_count: int = 5,  # Keep 5 rotated files
     compression: str = "zip",  # Compress the rotated files
     serialize: bool = True,  # Serialize the record dict to a JSON string
+    default_extra: dict = _DEFAULT_EXTRA,
 ) -> None:
     # custom log levels
     # logger.level("FATAL", no=60, color="<red>", icon="!!!")
 
+    logger.configure(extra=default_extra)
     try:
-        logger.remove(0)  # Remove the default handler
+        logger.remove()  # Remove the default handler
         logger.add(
             sys.stderr,
             level=stream_level,
@@ -61,10 +76,10 @@ def setup_logger(
             colorize=True,
             backtrace=True,
         )
-    except Exception:
-        # logger.error(f"Error removing the default handler: {e}")
+        logger.info("The default handler has been removed from the logger.")
+    except Exception as e:
+        logger.error(f"The default handler has not been removed: {e}")
         pass
-
     if use_file:
         path.mkdir(parents=True, exist_ok=True)
         logger.add(
@@ -76,19 +91,39 @@ def setup_logger(
             compression=compression,
             serialize=serialize,
         )
-
+        logger.info("The file handler has been added to the logger.")
+    else:
+        logger.info("The file handler has not been added to the logger.")
     logger.debug("The logger has been configured.")
 
 
 if __name__ == "__main__":
+    stream_formatter = (
+        "<g>{time:YYYY-MM-DD HH:mm:ss.SSSS}</g> "
+        "| <lvl>{level}</lvl> "
+        "| <lvl>{extra[classname]}:{function}:{line}</lvl> "
+        "| {message}"
+    )
+    file_formatter = (
+        "<g>{time:YYYY-MM-DD HH:mm:ss.SSSS}</g> "
+        "| <lvl>{level}</lvl> "
+        "| <lvl>{name}:{extra[classname]}:{function}:{line}</lvl> "
+        "| {message}"
+    )
+
     setup_logger(
         stream_level="TRACE",
+        stream_formatter=stream_formatter,
         path=LOG_DIR,
         max_bytes=100 * 1024 * 1024,
         backup_count=1,
         use_file=True,
+        file_level="TRACE",
+        file_formatter=stream_formatter,
+        default_extra={"classname": ""},
     )
     logger.trace("trace")
+    logger.bind(classname="Hello").trace("trace")
     logger.debug("debug")
     logger.info("info")
     logger.success("success")

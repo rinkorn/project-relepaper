@@ -175,7 +175,7 @@ class PDFMetadataExtractorNode(IWorkflowNode):
         self._pdf_service = PDFDocumentService(pdf_adapter=self._pdf_adapter)
 
     def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
 
         pdfs_metadata_extracted = []
         for openalex_pdf in state["pdfs"]:
@@ -205,7 +205,7 @@ class PDFMetadataExtractorNode(IWorkflowNode):
         output = {
             "pdfs_metadata_extracted": pdfs_metadata_extracted,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return output
 
 
@@ -301,7 +301,7 @@ class RandomRelevanceEvaluatorNode(IWorkflowNode):
         self._llm = llm
 
     def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
         pdfs = state["pdfs"]
 
         scores: List[RelevanceScoreContainer] = []
@@ -313,7 +313,7 @@ class RandomRelevanceEvaluatorNode(IWorkflowNode):
         output = {
             "relevance_scores": scores,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return output
 
 
@@ -332,7 +332,7 @@ class PDFRelevanceEvaluatorNode(IWorkflowNode):
         }
 
     def __call__(self, state: RelevanceEvaluatorState) -> RelevanceEvaluatorState:
-        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
 
         user_query = state["user_query"]
         pdfs_metadata_extracted = state["pdfs_metadata_extracted"]
@@ -405,7 +405,7 @@ class PDFRelevanceEvaluatorNode(IWorkflowNode):
         output = {
             "relevance_scores": relevance_scores,
         }
-        logger.trace(f"{self.__class__.__name__}: __call__: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return output
 
 
@@ -505,7 +505,7 @@ class RelevanceEvaluatorWorkflowBuilder(IWorkflowBuilder):
         self._llm = llm
 
     def build(self, **kwargs) -> StateGraph:
-        logger.trace(f"{self.__class__.__name__}: build: start")
+        logger.bind(classname=self.__class__.__name__).trace("start")
         graph_builder = StateGraph(RelevanceEvaluatorState)
         graph_builder.add_node("PDFMetadataExtractor", PDFMetadataExtractorNode(llm=self._llm))
         graph_builder.add_node("RelevanceEvaluator", PDFRelevanceEvaluatorNode(llm=self._llm))
@@ -515,7 +515,7 @@ class RelevanceEvaluatorWorkflowBuilder(IWorkflowBuilder):
         # graph_builder.add_edge(START, "RelevanceEvaluator")
         graph_builder.add_edge("RelevanceEvaluator", END)
         graph = graph_builder.compile(**kwargs)
-        logger.trace(f"{self.__class__.__name__}: build: end")
+        logger.bind(classname=self.__class__.__name__).trace("end")
         return graph
 
 

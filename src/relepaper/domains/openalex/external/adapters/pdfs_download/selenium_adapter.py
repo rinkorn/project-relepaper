@@ -1,17 +1,15 @@
 # %%
 # From: https://stackoverflow.com/questions/68289474/selenium-headless-how-to-bypass-cloudflare-detection-using-selenium
 
-import logging
 import shutil
 import time
 import uuid
 
+from loguru import logger
 from selenium import webdriver
 
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.openalex.external.interfaces import IAdapter
-
-logger = logging.getLogger(__name__)
 
 
 class SeleniumPDFDownloadAdapter(IAdapter):
@@ -21,6 +19,8 @@ class SeleniumPDFDownloadAdapter(IAdapter):
         timeout: int = 60,
     ) -> None:
         """Function to load pdf with selenium"""
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
 
         # create dirname
         openalex_pdf.dirname.mkdir(parents=True, exist_ok=True)
@@ -62,7 +62,7 @@ class SeleniumPDFDownloadAdapter(IAdapter):
             for f in dirname_temp.glob("*.[pP][dD][fF]"):
                 fname = f.name
             if total_time_sleep > timeout:
-                logger.error(f"Timeout waiting for pdf: {openalex_pdf.url}")
+                lg.error(f"Timeout waiting for pdf: {openalex_pdf.url}")
                 break
 
         # close driver
@@ -87,6 +87,7 @@ class SeleniumPDFDownloadAdapter(IAdapter):
 
         openalex_pdf.filename = path_out.name
         openalex_pdf.strategy = PDFDownloadStrategy.SELENIUM
+        lg.trace("end")
 
 
 # %%
