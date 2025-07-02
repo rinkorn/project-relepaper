@@ -1,16 +1,15 @@
 # %%
 import uuid
+from datetime import datetime
 from pprint import pprint
 from typing import List, TypedDict
-from datetime import datetime
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
 from relepaper.domains.langgraph.entities.session import Session
-from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
-from relepaper.domains.langgraph.workflows.utils import display_graph
+from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.openalex.entities.work import OpenAlexWork
 from relepaper.domains.openalex.external.adapters.works_search.factory import OpenAlexWorksSearchAdapterFactory
@@ -26,7 +25,7 @@ class OpenAlexDownloadState(TypedDict):
     reformulated_queries: List[str]  # List of reformulated queries
     works: List[OpenAlexWork]  # List of works
     pdfs: List[OpenAlexPDF]  # List of downloaded pdfs
-    per_page: int  # Number of works to search per query
+    per_page_works: int  # Number of works to search per query
     timeout: int  # Timeout for the search
 
 
@@ -38,7 +37,7 @@ class OpenalexSearchNode(IWorkflowNode):
     def __call__(self, state: OpenAlexDownloadState) -> OpenAlexDownloadState:
         logger.trace(f"{self.__class__.__name__}: __call__: start")
         reformulated_queries = state["reformulated_queries"]
-        per_page = state["per_page"]
+        per_page_works = state["per_page_works"]
 
         all_works = []
 
@@ -49,7 +48,7 @@ class OpenalexSearchNode(IWorkflowNode):
             # query_uuid = str(uuid.uuid4().hex)
             query_works = self._works_search_service.search_works(
                 query=query,
-                per_page=per_page,
+                per_page_works=per_page_works,
             )
 
             # Добавляем метаданные запроса к каждому work
@@ -144,6 +143,10 @@ class OpenAlexDownloadWorkflowBuilder(IWorkflowBuilder):
 if __name__ == "__main__":
     from relepaper.config.dev_settings import get_dev_settings
     from relepaper.config.logger import setup_logger
+    from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
+        DisplayMethod,
+        GraphDisplayer,
+    )
 
     setup_logger(stream_level="INFO")
 
@@ -166,7 +169,7 @@ if __name__ == "__main__":
         )
     )
     download_pdfs_service = OpenAlexPdfDownloadService(
-        strategy=PDFDownloadStrategy("selenium"),
+        strategy=PDFDownloadStrategy.SELENIUM,
         dirname=pdfs_path,
     )
     workflow = OpenAlexDownloadWorkflowBuilder(
@@ -177,7 +180,8 @@ if __name__ == "__main__":
     ).build(
         checkpointer=InMemorySaver(),
     )
-    display_graph(workflow)
+    displayer = GraphDisplayer(workflow).set_strategy(DisplayMethod.MERMAID)
+    displayer.display()
 
     session = Session()
 
@@ -193,7 +197,7 @@ if __name__ == "__main__":
         reformulated_queries=reformulated_queries,
         works=[],
         pdfs=[],
-        per_page=2,
+        per_page_works=2,
         timeout=30,
     )
     config = {

@@ -1,6 +1,8 @@
+# %%
+from pprint import pformat
 from typing import Callable, List, Optional
 
-from relepaper.domains.langgraph.entities.relevance_score import RelevanceScore
+from relepaper.domains.langgraph.entities.relevance_score import RelevanceCriteria, RelevanceScore, Score
 
 
 # %%
@@ -9,43 +11,56 @@ class RelevanceScoreContainer(List[RelevanceScore]):
         super().__init__(scores or [])
 
     def filter_by(self, key: str, func: Callable[[RelevanceScore], bool]) -> "RelevanceScoreContainer":
+        """
+        Filter the container by the key and the function.
+        """
         return RelevanceScoreContainer([item for item in self if func(getattr(item, key))])
 
-    def op_by(self, key: str, func: Callable[[List[float]], float]) -> Optional[float]:
-        items = [getattr(item, key, None) for item in self]
-        items = [item for item in items if item is not None]
-        if not items:
-            return None
-        return func(items)
+    # def op_by(self, key: str, func: Callable[[List[float]], float]) -> Optional[float]:
+    #     """
+    #     Apply function to the list of values of the key.
+    #     """
+    #     items = [getattr(item, key, None) for item in self]
+    #     items = [item for item in items if item is not None]
+    #     return func(items)
 
     @property
-    def mean(self) -> float:
-        # scores = [getattr(score, "score", 0) for score in self]
-        # return sum(scores) / len(scores)
-        return self.op_by("score", lambda x: sum(x) / len(x))
+    def mean(self) -> Optional[float]:
+        """
+        Calculate the mean of the scores.
+        """
+        return sum([item.score.value for item in self]) / len(self)
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(\n" + pformat([str(item) for item in self], indent=1, width=200) + "\n)"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 # %%
 if __name__ == "__main__":
-    container = RelevanceScoreContainer()
-    container.append(RelevanceScore(score=0.9, criteria="test", comment="test"))
-    container.append(
-        RelevanceScore(score=0.85, criteria="test", comment="long comment with some text and some more text")
+    container = RelevanceScoreContainer(
+        scores=[
+            RelevanceScore(score=Score(0.9), criteria=RelevanceCriteria.THEME, comment="test"),
+            RelevanceScore(
+                score=Score(0.85),
+                criteria=RelevanceCriteria.THEME,
+                comment="long comment with some text and some more text",
+            ),
+            RelevanceScore(score=Score(0.8), criteria=RelevanceCriteria.THEME, comment="hello"),
+            RelevanceScore(score=Score(0.4), criteria=RelevanceCriteria.THEME, comment="world"),
+        ]
     )
-    container.append(RelevanceScore(score=0.8, criteria="hello", comment="hello"))
-    container.append(RelevanceScore(score=0.4, criteria="world", comment="world"))
-    print(container)
-    print(f"test: {container.filter_by('criteria', lambda x: x == 'test')}")
-    print(f"hello: {container.filter_by('criteria', lambda x: x == 'hello')}")
-    print(f"world: {container.filter_by('criteria', lambda x: x == 'world')}")  # []
-    print(f"score >0.5: {container.filter_by('score', lambda x: x > 0.5)}")
-    print(f"score <0.5: {container.filter_by('score', lambda x: x < 0.5)}")
-    print(f"mean: {container.op_by('score', lambda x: sum(x) / len(x))}")
-    print(f"max: {container.op_by('score', lambda x: max(x))}")
-    print(f"min: {container.op_by('score', lambda x: min(x))}")
-    print(f"len: {len(container)}")
-    print(f"mean: {container.mean}")
-    print(container[0])
-    container[0] = RelevanceScore(score=0.95, criteria="omfg", comment="test")
-    print(container[0])
-    print(container)
+    # print(container)
+    print(f"test: {container.filter_by('criteria', lambda x: x == RelevanceCriteria.THEME)}")
+    print(f"hello: {container.filter_by('criteria', lambda x: x == RelevanceCriteria.THEME)}")
+    print(f"world: {container.filter_by('criteria', lambda x: x == RelevanceCriteria.THEME)}")
+    print(f"score >0.5: {container.filter_by('score', lambda x: x.value > 0.5)}")
+    print(f"score <0.5: {container.filter_by('score', lambda x: x.value < 0.5)}")
+    print(f"mean value of scores: {container.mean}")
+    print(f"len of container: {len(container)}")
+    print(f"first item: {container[0]}")
+    container[0] = RelevanceScore(score=Score(0.99), criteria=RelevanceCriteria.TERMINOLOGY, comment="test")
+    print(f"first item after update: {container[0]}")
+    # print(container)

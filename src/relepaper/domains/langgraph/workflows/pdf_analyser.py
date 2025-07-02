@@ -11,8 +11,9 @@ from loguru import logger
 
 from relepaper.domains.langgraph.entities.pdf_content_chunk import PDFContentChunk
 from relepaper.domains.langgraph.entities.pdf_content_splitter import PDFContentSplitter
+from relepaper.domains.langgraph.entities.pdf_length_type import PDFLengthType
 from relepaper.domains.langgraph.entities.pdf_metadata_extracted import PDFMetadataExtracted
-from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowEdge, IWorkflowNode
+from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowEdge, IWorkflowNode
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.pdf_exploring.entities.pdf_document import PDFDocument
 from relepaper.domains.pdf_exploring.external.adapters.factory import AdapterFactory
@@ -30,9 +31,9 @@ class PDFAnalyserState(TypedDict):
     pdf_metadata_extracted: PDFMetadataExtracted
     pdf_chunks: List[PDFContentChunk]
     pdf_chunks_metadata_extracted: List[PDFMetadataExtracted]
-    short_long_pdf_length_threshold: int = 10000
-    max_chunk_length: int = 10000
-    max_chunks_count: int = 100
+    short_long_pdf_length_threshold: int = 100000
+    max_chunk_length: int = 100000
+    max_chunks_count: int = 10
     intersection_length: int = 1000
 
 
@@ -145,7 +146,7 @@ if __name__ == "__main__":
 
 # %%
 class PDFLengthConditionalEdge(IWorkflowEdge):
-    def __call__(self, state: PDFAnalyserState) -> str:
+    def __call__(self, state: PDFAnalyserState) -> PDFLengthType:
         logger.trace(f"{self.__class__.__name__}: __call__: start")
         pdf_document = state["pdf_document"]
         short_long_pdf_length_threshold = state["short_long_pdf_length_threshold"]
@@ -153,10 +154,10 @@ class PDFLengthConditionalEdge(IWorkflowEdge):
         logger.debug(f"{self.__class__.__name__}: __call__: short_long_threshold: {short_long_pdf_length_threshold}")
         if len(pdf_document) > short_long_pdf_length_threshold:
             logger.trace(f"{self.__class__.__name__}: __call__: long_pdf: done")
-            return "long_pdf"
+            return PDFLengthType.LONG
         else:
             logger.trace(f"{self.__class__.__name__}: __call__: short_pdf: done")
-            return "short_pdf"
+            return PDFLengthType.SHORT
 
 
 # %%
@@ -414,8 +415,8 @@ class PDFAnalyserWorkflowBuilder(IWorkflowBuilder):
             START,
             PDFLengthConditionalEdge(),
             {
-                "long_pdf": "pdf_text_splitter",
-                "short_pdf": "pdf_metadata_extract",
+                PDFLengthType.LONG: "pdf_text_splitter",
+                PDFLengthType.SHORT: "pdf_metadata_extract",
             },
         )
         graph.add_edge("pdf_metadata_extract", END)
@@ -429,14 +430,19 @@ class PDFAnalyserWorkflowBuilder(IWorkflowBuilder):
 
 # %%
 if __name__ == "__main__":
-    from relepaper.domains.langgraph.workflows.utils import display_graph
-
     # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     # llm = ChatOllama(
     #     model="hf.co/unsloth/Qwen3-30B-A3B-128K-GGUF:Q4_1",
     #     temperature=0.0,
     #     max_tokens=128000,
     # )
+    from langchain.chat_models import ChatOpenAI
+
+    from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
+        DisplayMethod,
+        GraphDisplayer,
+    )
+
     llm = ChatOpenAI(
         base_url="http://localhost:7007/v1",
         api_key="not_needed",
@@ -478,22 +484,22 @@ if __name__ == "__main__":
         #     filename="Intl J Robust   Nonlinear - 2021 - Wan - Optimal control and learning for cyber‐physical systems.pdf",
         #     strategy=PDFDownloadStrategy.SELENIUM,
         # ),
-        # OpenAlexPDF(
-        #     url="https://jcheminf.biomedcentral.com/track/pdf/10.1186/s13321-021-00561-9",
-        #     dirname=Path(
-        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
-        #     ),
-        #     filename="s13321-021-00561-9.pdf",
-        #     strategy=PDFDownloadStrategy.SELENIUM,
-        # ),
         OpenAlexPDF(
-            url="https://dr.ntu.edu.sg/bitstream/10356/172831/2/main_thesis.pdf",
+            url="https://jcheminf.biomedcentral.com/track/pdf/10.1186/s13321-021-00561-9",
             dirname=Path(
                 "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
             ),
-            filename="main_thesis.pdf",
+            filename="s13321-021-00561-9.pdf",
             strategy=PDFDownloadStrategy.SELENIUM,
         ),
+        # OpenAlexPDF(
+        #     url="https://dr.ntu.edu.sg/bitstream/10356/172831/2/main_thesis.pdf",
+        #     dirname=Path(
+        #         "/home/rinkorn/space/prog/python/sber/project-relepaper/src/relepaper/domains/langgraph/workflows/.data/openalex_pdfs"
+        #     ),
+        #     filename="main_thesis.pdf",
+        #     strategy=PDFDownloadStrategy.SELENIUM,
+        # ),
     ]
     pdf_adapter = AdapterFactory.create("pymupdf")
     pdf_service = PDFDocumentService(pdf_adapter=pdf_adapter)
@@ -507,7 +513,9 @@ if __name__ == "__main__":
         pdf_documents.append(pdf_document)
 
     workflow = PDFAnalyserWorkflowBuilder(llm=llm).build()
-    display_graph(workflow)
+
+    displayer = GraphDisplayer(workflow).set_strategy(DisplayMethod.MERMAID)
+    displayer.display()
 
     for pdf_document in pdf_documents:
         state_start = {
@@ -516,7 +524,7 @@ if __name__ == "__main__":
             "pdf_chunks": [],
             "pdf_chunks_metadata_extracted": [],
             "short_long_pdf_length_threshold": 100000,
-            "max_chunk_length": 10000,
+            "max_chunk_length": 100000,
             "max_chunks_count": 10,
             "intersection_length": 2000,
         }

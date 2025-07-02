@@ -1,5 +1,6 @@
 from typing import List
 
+from loguru import logger
 from pyalex import Works, config
 
 from relepaper.domains.openalex.entities.work import OpenAlexWork
@@ -27,11 +28,13 @@ class PyAlexWorksSearchAdapter(IAdapter):
         Returns:
             list of OpenAlexWork objects
         """
+        logger.trace(f"{self.__class__.__name__}: search_works: start")
+        logger.debug(f"{self.__class__.__name__}: search_works: query: {query}")
         W = Works().search_filter(title_and_abstract=query)
         W = W.filter(has_oa_accepted_or_published_version=True)
         W = W.sort(cited_by_count="desc")
         works = W.get(per_page=per_page)
-
         open_alex_works = [OpenAlexWork.from_dict(work) for work in works]
-
+        logger.info(f"{self.__class__.__name__}: search_works: found works: {len(open_alex_works)}")
+        logger.trace(f"{self.__class__.__name__}: search_works: end")
         return open_alex_works

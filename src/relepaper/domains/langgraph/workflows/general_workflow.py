@@ -11,8 +11,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
+from relepaper.domains.langgraph.entities.relevance_decision import Threshold
 from relepaper.domains.langgraph.entities.session import Session
-from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
+from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.langgraph.workflows.openalex_download_workflow import (
     OpenAlexDownloadState,
     OpenAlexDownloadWorkflowBuilder,
@@ -26,11 +27,10 @@ from relepaper.domains.langgraph.workflows.relevance_evaluator import (
     RelevanceEvaluatorState,
     RelevanceEvaluatorWorkflowBuilder,
 )
-from relepaper.domains.langgraph.workflows.relevance_score_manager import (
-    RelevanceScoreManagerState,
-    RelevanceScoreManagerWorkflowBuilder,
+from relepaper.domains.langgraph.workflows.relevance_manager import (
+    RelevanceManagerState,
+    RelevanceManagerWorkflowBuilder,
 )
-from relepaper.domains.langgraph.workflows.utils import display_graph
 from relepaper.domains.openalex.entities.pdf import PDFDownloadStrategy
 from relepaper.domains.openalex.external.adapters.works_search.factory import (
     OpenAlexWorksSearchAdapterFactory,
@@ -50,7 +50,7 @@ class GeneralWorkflowState(TypedDict):
     query_interpretator_state: QueryInterpretatorState
     openalex_download_state: OpenAlexDownloadState
     relevance_evaluator_state: RelevanceEvaluatorState
-    relevance_score_manager_state: RelevanceScoreManagerState
+    relevance_manager_state: RelevanceManagerState
 
 
 # %%
@@ -65,7 +65,8 @@ class QueryInterpretatorNode(IWorkflowNode):
         if workflow_builder is None:
             workflow_builder = QueryInterpretatorWorkflowBuilder(llm=llm)
         self._workflow = workflow_builder.build(checkpointer=InMemorySaver())
-        display_graph(self._workflow)
+        displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
+        displayer.display()
 
         self._config = {
             "configurable": {
@@ -137,7 +138,8 @@ class OpenAlexDownloadNode(IWorkflowNode):
                 "thread_id": uuid.uuid4().hex,
             },
         }
-        display_graph(self._workflow)
+        displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
+        displayer.display()
 
     def __call__(self, state: GeneralWorkflowState) -> dict:
         logger.trace("OpenAlexDownloadNode: __call__: start")
@@ -174,7 +176,8 @@ class RelevanceEvaluatorNode(IWorkflowNode):
                 "thread_id": uuid.uuid4().hex,
             },
         }
-        display_graph(self._workflow)
+        displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
+        displayer.display()
 
     def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
         logger.trace("RelevanceEvaluatorNode: __call__: start")
@@ -192,7 +195,7 @@ class RelevanceEvaluatorNode(IWorkflowNode):
             state_output["relevance_scores"],
         ):
             logger.debug(f"User query: {state_input['user_query']}")
-            logger.debug(f"Title: {extracted_metadata.get('extracted_title', '')}")
+            logger.debug(f"Title: {getattr(extracted_metadata, 'title', '')}")
             logger.debug(f"PDF: {pdf.filename}\n\tscore: {score}")
 
         output = {"relevance_evaluator_state": state_output}
@@ -201,9 +204,9 @@ class RelevanceEvaluatorNode(IWorkflowNode):
 
 
 # %%
-class RelevanceScoreManagerNode(IWorkflowNode):
+class RelevanceManagerNode(IWorkflowNode):
     def __init__(self, llm: BaseChatModel, max_concurrency: int = 2, max_retries: int = 5):
-        self._workflow = RelevanceScoreManagerWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
+        self._workflow = RelevanceManagerWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
         self._config = {
             "configurable": {
                 "max_concurrency": max_concurrency,
@@ -211,11 +214,12 @@ class RelevanceScoreManagerNode(IWorkflowNode):
                 "thread_id": uuid.uuid4().hex,
             },
         }
-        display_graph(self._workflow)
+        displayer = GraphDisplayer(self._workflow).set_strategy(DisplayMethod.MERMAID)
+        displayer.display()
 
     def __call__(self, state: GeneralWorkflowState) -> GeneralWorkflowState:
-        logger.trace("RelevanceScoreManagerNode: __call__: start")
-        state_input = state["relevance_score_manager_state"]
+        logger.trace(f"{self.__class__.__name__}: __call__: start")
+        state_input = state["relevance_manager_state"]
         state_input["session"] = state["session"]
         state_input["relevance_scores"] = state["relevance_evaluator_state"]["relevance_scores"]
         state_output = self._workflow.invoke(
@@ -223,9 +227,9 @@ class RelevanceScoreManagerNode(IWorkflowNode):
             config=self._config,
         )
         output = {
-            "relevance_score_manager_state": state_output,
+            "relevance_manager_state": state_output,
         }
-        logger.trace("RelevanceScoreManagerNode: __call__: end")
+        logger.trace(f"{self.__class__.__name__}: __call__: end")
         return output
 
 
@@ -239,7 +243,7 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
         self._query_interpretator_node = QueryInterpretatorNode(llm=llm)
         self._openalex_download_node = OpenAlexDownloadNode()
         self._relevance_evaluator_node = RelevanceEvaluatorNode(llm=llm)
-        self._relevance_score_manager_node = RelevanceScoreManagerNode(llm=llm)
+        self._relevance_manager_node = RelevanceManagerNode(llm=llm)
 
     def build(self, **kwargs) -> StateGraph:
         logger.trace("GeneralWorkflowBuilder: build: start")
@@ -247,12 +251,12 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
         graph_builder.add_node("QueryInterpretator", self._query_interpretator_node)
         graph_builder.add_node("OpenAlexDownloader", self._openalex_download_node)
         graph_builder.add_node("RelevanceEvaluator", self._relevance_evaluator_node)
-        graph_builder.add_node("RelevanceScoreManager", self._relevance_score_manager_node)
+        graph_builder.add_node("RelevanceManager", self._relevance_manager_node)
         graph_builder.add_edge(START, "QueryInterpretator")
         graph_builder.add_edge("QueryInterpretator", "OpenAlexDownloader")
         graph_builder.add_edge("OpenAlexDownloader", "RelevanceEvaluator")
-        graph_builder.add_edge("RelevanceEvaluator", "RelevanceScoreManager")
-        graph_builder.add_edge("RelevanceScoreManager", END)
+        graph_builder.add_edge("RelevanceEvaluator", "RelevanceManager")
+        graph_builder.add_edge("RelevanceManager", END)
         graph = graph_builder.compile(**kwargs)
         logger.trace("GeneralWorkflowBuilder: build: end")
         return graph
@@ -261,8 +265,12 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
 # %%
 if __name__ == "__main__":
     from relepaper.config.logger import setup_logger
+    from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
+        DisplayMethod,
+        GraphDisplayer,
+    )
 
-    setup_logger(stream_level="INFO")
+    setup_logger(stream_level="TRACE")
     # import os
     # from langchain_ollama import ChatOllama
 
@@ -291,7 +299,8 @@ if __name__ == "__main__":
 
     # ----- General workflow -----
     general_workflow = GeneralWorkflowBuilder(llm=llm).build(checkpointer=InMemorySaver())
-    display_graph(general_workflow)
+    displayer = GraphDisplayer(general_workflow).set_strategy(DisplayMethod.MERMAID)
+    displayer.display()
 
     state_start = GeneralWorkflowState(
         messages=[user_query],
@@ -301,17 +310,17 @@ if __name__ == "__main__":
             user_query=None,
             main_topic="",
             context_for_queries="",
-            reformulated_queries_quantity=5,
+            reformulated_queries_quantity=10,
             reformulated_queries=[],
-            comment="",
+            comment=None,
         ),
         openalex_download_state=OpenAlexDownloadState(
             session=None,
             reformulated_queries=[],
-            per_page=5,
-            timeout=60,
             works=[],
             pdfs=[],
+            per_page_works=5,
+            timeout=60,
         ),
         relevance_evaluator_state=RelevanceEvaluatorState(
             session=None,
@@ -321,17 +330,22 @@ if __name__ == "__main__":
             pdfs_metadata_extracted=[],
             relevance_scores=[],
             pdf_analyser_state=PDFAnalyserState(
-                short_long_pdf_length_threshold=100000,
-                max_chunk_length=100000,
-                max_chunks_count=100,
+                pdf_document=None,
+                pdf_metadata_extracted=None,
+                pdf_chunks=[],
+                pdf_chunks_metadata_extracted=[],
+                short_long_pdf_length_threshold=135000,
+                max_chunk_length=135000,
+                max_chunks_count=10,
                 intersection_length=1000,
             ),
         ),
-        relevance_score_manager_state=RelevanceScoreManagerState(
+        relevance_manager_state=RelevanceManagerState(
             session=None,
-            decision="",  # good/bad score
-            mean_relevance_score=0,
             relevance_scores=[],
+            mean_score_overall_pdfs=None,
+            decision_threshold=Threshold(value=50),
+            relevance_decision=None,
         ),
     )
     config = {
@@ -348,7 +362,10 @@ if __name__ == "__main__":
     pprint(state_end["query_interpretator_state"]["reformulated_queries"])
     pprint(state_end["openalex_download_state"]["pdfs"])
     print(f"relevance_scores: \n\t{state_end['relevance_evaluator_state']['relevance_scores']}")
-    print(f"decision: \n\t{state_end['relevance_score_manager_state']['decision']}")
+    for container in state_end["relevance_evaluator_state"]["relevance_scores"]:
+        print(f"mean: {container.mean}")
+    print(f"mean_score_overall_pdfs: {state_end['relevance_manager_state']['mean_score_overall_pdfs']}")
+    print(f"decision: \n\t{state_end['relevance_manager_state']['relevance_decision']}")
 
     # state_history = [sh for sh in general_workflow.get_state_history(config)]
     # pprint(state_history)

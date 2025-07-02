@@ -10,18 +10,14 @@ from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
-from relepaper.domains.langgraph.entities.relevance_score import RelevanceScore
+from relepaper.domains.langgraph.entities.relevance_score import RelevanceCriteria, RelevanceScore, Score
 from relepaper.domains.langgraph.entities.relevance_score_container import RelevanceScoreContainer
 from relepaper.domains.langgraph.entities.session import Session
-from relepaper.domains.langgraph.workflows.interfaces import (
-    IWorkflowBuilder,
-    IWorkflowNode,
-)
+from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowNode
 from relepaper.domains.langgraph.workflows.pdf_analyser import (
     PDFAnalyserState,
     PDFAnalyserWorkflowBuilder,
 )
-from relepaper.domains.langgraph.workflows.utils import display_graph
 from relepaper.domains.openalex.entities.pdf import OpenAlexPDF, PDFDownloadStrategy
 from relepaper.domains.openalex.entities.work import OpenAlexWork
 from relepaper.domains.pdf_exploring.external.adapters.factory import AdapterFactory
@@ -151,19 +147,6 @@ def get_response_schemas() -> List[ResponseSchema]:
             maxValue=100,
             multipleOf=1,
         ),
-        # ResponseSchema(
-        #     name="overall_score",
-        #     description=(
-        #         "Overall score for the relevance of the article. The score is a number between 0 and 100. "
-        #         "The score is the mean of the scores of the following criteria: theme_score, terminology_score, "
-        #         "methodology_score, practical_applicability_score, novelty_and_relevance_score, "
-        #         "fundamental_significance_score"
-        #     ),
-        #     type="number",
-        #     minValue=0,
-        #     maxValue=100,
-        #     multipleOf=1,
-        # ),
     ]
 
 
@@ -386,33 +369,33 @@ class PDFRelevanceEvaluatorNode(IWorkflowNode):
             container = RelevanceScoreContainer(
                 scores=[
                     RelevanceScore(
-                        score=response["theme_score"],
-                        criteria="theme_score",
+                        score=Score(value=response["theme_score"]),
+                        criteria=RelevanceCriteria.THEME,
                         comment="Score for the theme of the article. The score is a number between 0 and 100.",
                     ),
                     RelevanceScore(
-                        score=response["terminology_score"],
-                        criteria="terminology_score",
+                        score=Score(value=response["terminology_score"]),
+                        criteria=RelevanceCriteria.TERMINOLOGY,
                         comment="Score for the terminology of the article. The score is a number between 0 and 100.",
                     ),
                     RelevanceScore(
-                        score=response["methodology_score"],
-                        criteria="methodology_score",
+                        score=Score(value=response["methodology_score"]),
+                        criteria=RelevanceCriteria.METHODOLOGY,
                         comment="Score for the methodology of the article. The score is a number between 0 and 100.",
                     ),
                     RelevanceScore(
-                        score=response["practical_applicability_score"],
-                        criteria="practical_applicability_score",
+                        score=Score(value=response["practical_applicability_score"]),
+                        criteria=RelevanceCriteria.PRACTICAL_APPLICABILITY,
                         comment="Score for the practical applicability of the article. The score is a number between 0 and 100.",
                     ),
                     RelevanceScore(
-                        score=response["novelty_and_relevance_score"],
-                        criteria="novelty_and_relevance_score",
+                        score=Score(value=response["novelty_and_relevance_score"]),
+                        criteria=RelevanceCriteria.NOVELTY_AND_RELEVANCE,
                         comment="Score for the novelty and relevance of the article. The score is a number between 0 and 100.",
                     ),
                     RelevanceScore(
-                        score=response["fundamental_significance_score"],
-                        criteria="fundamental_significance_score",
+                        score=Score(value=response["fundamental_significance_score"]),
+                        criteria=RelevanceCriteria.FUNDAMENTAL_SIGNIFICANCE,
                         comment="Score for the fundamental significance of the article. The score is a number between 0 and 100.",
                     ),
                 ]
@@ -508,13 +491,11 @@ if __name__ == "__main__":
     evaluator_state_end = pdf_relevance_evaluator_node(evaluator_state_start)
     pprint(evaluator_state_start["user_query"].content)
     for i, pdf in enumerate(evaluator_state_start["pdfs"]):
-        print("-" * 100)
         pprint(pdf.filename)
-        scores = evaluator_state_end["relevance_scores"][i]
-        mean_score = scores.op_by("score", lambda x: sum(x) / len(x))
-        for score in scores:
-            print(f"{score.criteria}: {score.score}")
-        print(f"mean_score: {mean_score:.2f}")
+        container_scores = evaluator_state_end["relevance_scores"][i]
+        for relevance_score in container_scores:
+            print(f"{relevance_score.criteria.value}: {relevance_score.score.value}")
+        print(f"mean: {container_scores.mean:.2f}")
         print("-" * 100)
 
 
@@ -547,6 +528,11 @@ if __name__ == "__main__":
     #     max_tokens=10000,
     # )
     from langchain.chat_models import ChatOpenAI
+
+    from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
+        DisplayMethod,
+        GraphDisplayer,
+    )
 
     llm = ChatOpenAI(
         base_url="http://localhost:7007/v1",
@@ -601,7 +587,8 @@ if __name__ == "__main__":
         ),
     ]
     workflow = RelevanceEvaluatorWorkflowBuilder(llm=llm).build()
-    display_graph(workflow)
+    displayer = GraphDisplayer(workflow).set_strategy(DisplayMethod.MERMAID)
+    displayer.display()
 
     user_queries = [
         "Поведение собак в террариуме",
@@ -633,13 +620,15 @@ if __name__ == "__main__":
         state_end = workflow.invoke(input=state_start)
 
         for pdf, extracted_metadata, pdf_container_score in zip(
-            state_end["pdfs"], state_end["pdfs_metadata_extracted"], state_end["relevance_scores"]
+            state_end["pdfs"],
+            state_end["pdfs_metadata_extracted"],
+            state_end["relevance_scores"],
         ):
             print("-" * 100)
             print(f"User query: {user_query}")
             print(f"Title: {getattr(extracted_metadata, 'title', '')}")
             print(f"PDF: {pdf.filename}")
-            for score in pdf_container_score:
-                print(score)
-            print(f"Mean score: {pdf_container_score.op_by('score', lambda x: sum(x) / len(x)):.2f}")
+            for relevance_score in pdf_container_score:
+                print(relevance_score)
+            print(f"Mean: {pdf_container_score.mean:.2f}")
             print("-" * 100)

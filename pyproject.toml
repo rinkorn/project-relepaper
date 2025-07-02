@@ -16,6 +16,7 @@ dependencies = [
     "fake-headers>=1.0.2",
     "fake-useragent>=2.2.0",
     "gradio>=5.31.0",
+    "grandalf>=0.8",
     "langchain>=0.3.23",
     "langchain-community>=0.3.21",
     "langchain-experimental>=0.3.4",

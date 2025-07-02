@@ -1,5 +1,4 @@
 # %%
-import os
 import uuid
 from pprint import pprint
 from typing import List, TypedDict
@@ -8,14 +7,12 @@ from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
 from relepaper.domains.langgraph.entities.session import Session
-from relepaper.domains.langgraph.workflows.interfaces import IWorkflowBuilder, IWorkflowNode
-from relepaper.domains.langgraph.workflows.utils import display_graph
+from relepaper.domains.langgraph.interfaces import IWorkflowBuilder, IWorkflowNode
 
 __all__ = [
     "QueryInterpretatorState",
@@ -29,9 +26,9 @@ class QueryInterpretatorState(TypedDict):
     user_query: BaseMessage
     main_topic: str
     context_for_queries: str
-    comment: str
     reformulated_queries_quantity: int = 10
     reformulated_queries: List[str]
+    comment: str | None = None
 
 
 # %%
@@ -417,14 +414,25 @@ class ContextMaker3Node(IWorkflowNode):
 
 
 if __name__ == "__main__":
-    llm = ChatOllama(
-        # model="qwen3:30B-a3b",
-        model="qwen3:32b",
-        # model="qwen3:14b",
-        # model="qwen3:8b",
-        temperature=0.0,
-        max_tokens=10000,
+    # from langchain_ollama import ChatOllama
+    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+
+    # llm = ChatOllama(
+    #     # model="qwen3:30B-a3b",
+    #     model="qwen3:32b",
+    #     # model="qwen3:14b",
+    #     # model="qwen3:8b",
+    #     temperature=0.0,
+    #     max_tokens=10000,
+    # )
+    from langchain.chat_models import ChatOpenAI
+
+    llm = ChatOpenAI(
+        base_url="http://localhost:7007/v1",
+        api_key="not_needed",
+        temperature=0.00,
     )
+
     context_maker_state_start = QueryInterpretatorState(
         user_query=HumanMessage(
             content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
@@ -683,11 +691,23 @@ class QueryReformulator2Node(IWorkflowNode):
 
 
 if __name__ == "__main__":
-    llm = ChatOllama(
-        # model="qwen3:30B-a3b",
-        model="qwen3:32b",
-        temperature=0.0,
-        max_tokens=10000,
+    # from langchain_ollama import ChatOllama
+    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+
+    # llm = ChatOllama(
+    #     # model="qwen3:30B-a3b",
+    #     model="qwen3:32b",
+    #     # model="qwen3:14b",
+    #     # model="qwen3:8b",
+    #     temperature=0.0,
+    #     max_tokens=10000,
+    # )
+    from langchain.chat_models import ChatOpenAI
+
+    llm = ChatOpenAI(
+        base_url="http://localhost:7007/v1",
+        api_key="not_needed",
+        temperature=0.00,
     )
     # context_maker_state_end = ContextMaker3Node(llm)(context_maker_state_start)
     query_reformulator_state_start = QueryInterpretatorState(
@@ -721,23 +741,36 @@ class QueryInterpretatorWorkflowBuilder(IWorkflowBuilder):
 
 
 if __name__ == "__main__":
-    # test use case
-    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
-    llm = ChatOllama(
-        model="qwen3:30B-a3b",
-        # model="hf.co/unsloth/Qwen3-30B-A3B-128K-GGUF:Q4_1",
-        # model="qwen3:32b",
-        # model="qwen3:14b",
-        # model="qwen3:8b",
-        temperature=0.0,
-        max_tokens=20000,
+    # from langchain_ollama import ChatOllama
+    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+    # llm = ChatOllama(
+    #     model="qwen3:30B-a3b",
+    #     # model="hf.co/unsloth/Qwen3-30B-A3B-128K-GGUF:Q4_1",
+    #     # model="qwen3:32b",
+    #     # model="qwen3:14b",
+    #     # model="qwen3:8b",
+    #     temperature=0.0,
+    #     max_tokens=20000,
+    # )
+    from langchain.chat_models import ChatOpenAI
+
+    from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
+        DisplayMethod,
+        GraphDisplayer,
+    )
+
+    llm = ChatOpenAI(
+        base_url="http://localhost:7007/v1",
+        api_key="not_needed",
+        temperature=0.00,
     )
     workflow = QueryInterpretatorWorkflowBuilder(
         llm=llm,
     ).build(
         checkpointer=InMemorySaver(),
     )
-    display_graph(workflow)
+    displayer = GraphDisplayer(workflow).set_strategy(DisplayMethod.MERMAID)
+    displayer.display()
 
     state_start = QueryInterpretatorState(
         user_query=HumanMessage(

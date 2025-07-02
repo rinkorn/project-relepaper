@@ -20,13 +20,13 @@ class OpenAlexWorksSearchService(IService):
             )
         self._adapter = adapter
 
-    def search_works(self, query: str, per_page: int = 5) -> List[OpenAlexWork]:
+    def search_works(self, query: str, per_page_works: int = 5) -> List[OpenAlexWork]:
         """Search for articles on the OpenAlex hub.
 
         Args:
             query: user query
-            per_page: number of works to return
+            per_page_works: number of works to return
         Returns:
             list of OpenAlexWork objects
         """
-        return self._adapter.search_works(query, per_page)
+        return self._adapter.search_works(query, per_page_works)
