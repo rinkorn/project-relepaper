@@ -27,7 +27,8 @@ class PDFContentSplitter:
         self._split_pdf_document()
 
     def _split_pdf_document(self):
-        logger.trace("PDFContentSplitter: _split_pdf_document: start")
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
         text = self._pdf_document.text.text
         chunks = []
         for i in range(0, len(text), self._max_chunk_length - self._intersection_length):
@@ -39,7 +40,7 @@ class PDFContentSplitter:
             if self._max_chunks_count is not None and len(chunks) >= self._max_chunks_count:
                 break
         self._chunks = chunks
-        logger.trace("PDFContentSplitter: _split_pdf_document: end")
+        lg.trace("end")
 
     def get_chunks(self) -> List[PDFContentChunk]:
         return self._chunks

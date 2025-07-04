@@ -93,6 +93,11 @@ class QueryInterpretatorSubgraph(IWorkflowNode):
         state_input = state["query_interpretator_state"]
         state_input["session"] = state["session"]
         state_input["user_query"] = state["messages"][-1]
+        state_input["context_for_queries"] = state["query_interpretator_state"]["context_for_queries"]
+        state_input["reformulated_queries"] = state["query_interpretator_state"]["reformulated_queries"]
+        state_input["reformulated_queries_quantity"] = state["query_interpretator_state"][
+            "reformulated_queries_quantity"
+        ]
         state_output = self._workflow.invoke(
             input=state_input,
             config=self._config,
@@ -334,6 +339,10 @@ class GeneralWorkflowBuilder(IWorkflowBuilder):
 
 # %%
 if __name__ == "__main__":
+    import os
+
+    from langchain_ollama import ChatOllama
+
     from relepaper.config.logger import setup_logger
     from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
         DisplayMethod,
@@ -341,23 +350,31 @@ if __name__ == "__main__":
     )
 
     setup_logger(stream_level="TRACE")
-    # import os
-    # from langchain_ollama import ChatOllama
 
-    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
-    # llm = ChatOllama(
-    #     # model="qwen3:8b",
-    #     model="qwen3:32b",
-    #     temperature=0.0,
-    #     max_tokens=10000,
-    # )
-    from langchain_openai import ChatOpenAI
-
-    llm = ChatOpenAI(
-        base_url="http://localhost:7007/v1",
-        api_key="not_needed",
-        temperature=0.00,
+    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+    llm = ChatOllama(
+        model="qwen3:32b",
+        # model="hf.co/unsloth/Qwen3-4B-128K-GGUF:Q4_K_M",
+        temperature=0.0,
+        max_tokens=32000,
     )
+
+    # llm = ChatOpenAI(
+    #     base_url="http://localhost:7007/v1",
+    #     api_key="not_needed",
+    #     temperature=0.0,
+    # )
+
+    # from langchain.chat_models.gigachat import GigaChat
+    # # auth = os.getenv("GIGACHAT_CREDENTIALS")
+    # llm = GigaChat(
+    #     credentials="ZThkYmEyZWQtNjdjMi00NjBmLWE4MmUtMTM0NzRjNTZmMDM2OjY2YTMxMzA1LTlhNTQtNDNhOS05ZjIwLTgyMmMzOGIyODM5Nw==",
+    #     model="GigaChat:lite",  # GigaChat:max, GigaChat:lite, GigaChat:pro
+    #     scope="GIGACHAT_API_CORP",
+    #     verify_ssl_certs=False,
+    #     profanity_check=False,
+    # )
+
     user_query = HumanMessage(
         content=(
             "Я пишу диссертацию по теме: Обучение с подкреплением. Обучение в офлайн-режиме. "
@@ -380,7 +397,7 @@ if __name__ == "__main__":
             user_query=None,
             main_topic="",
             context_for_queries="",
-            reformulated_queries_quantity=3,
+            reformulated_queries_quantity=2,
             reformulated_queries=[],
             comment=None,
         ),
@@ -404,9 +421,9 @@ if __name__ == "__main__":
                 pdf_metadata_extracted=None,
                 pdf_chunks=[],
                 pdf_chunks_metadata_extracted=[],
-                short_long_pdf_length_threshold=200000,
-                max_chunk_length=200000,
-                max_chunks_count=10,
+                short_long_pdf_length_threshold=50000,
+                max_chunk_length=50000,
+                max_chunks_count=5,
                 intersection_length=1000,
             ),
         ),
@@ -414,7 +431,7 @@ if __name__ == "__main__":
             session=None,
             relevance_scores=[],
             mean_score_overall_pdfs=None,
-            decision_threshold=Threshold(value=50),
+            decision_threshold=Threshold(90),
             relevance_decision=None,
         ),
         repeater_state=RepeaterState(

@@ -24,34 +24,6 @@ __all__ = [
 
 
 # %%
-def get_context_maker_system_message(think: bool = True):
-    return (
-        "You are an expert in scientific research and bibliometric analysis. "  # "Ты эксперт по научным исследованиям и библиометрическому анализу. "
-        "Your task is to analyze the user query and create a detailed context "  # "Твоя задача - проанализировать пользовательский запрос, выделить главную тему и создать детальный контекст "
-        "for finding relevant scientific articles.\n\n"  # "для поиска релевантных научных статей в Google Scholar.\n\n"
-        "ANALYZE the user query and DETERMINE:\n"  # "АНАЛИЗИРУЙ запрос пользователя и ОПРЕДЕЛИ:\n"
-        "1. Main topic of the user query. "  # "1. Главную тему исследования\n"
-        "2. Main scientific field and discipline\n"  # "2. Основную научную область и дисциплину\n"
-        "3. Key terms and concepts (including synonyms and English equivalents)\n"  # "3. Ключевые термины и понятия (включая синонимы и англоязычные эквиваленты)\n"
-        "4. Research methods that may be relevant\n"  # "4. Методы исследования, которые могут быть релевантны\n"
-        "5. Related areas of knowledge\n"  # "5. Смежные области знаний\n"
-        "6. Temporal context of research (if specified)\n"  # "6. Временной контекст исследований (если указан)\n"
-        "7. Level of research (theoretical, experimental, applied)\n\n"  # "7. Уровень исследования (теоретический, экспериментальный, прикладной)\n\n"
-        "CREATE a structured context, including:\n"  # "СОЗДАЙ структурированный контекст, включающий:\n"
-        "- Alternative formulations of terms\n"  # "- Альтернативные формулировки терминов\n"
-        "- Related concepts and areas\n"  # "- Смежные понятия и области\n"
-        "- Potential methodological approaches\n"  # "- Потенциальные методологические подходы\n"
-        "- Specific technologies or equipment (if mentioned)\n\n"  # "- Специфические технологии или оборудование (если упомянуты)\n\n"
-        "Use English for all responses.\n"  # "Используй РУССКИЙ язык для всех ответов.\n"
-        "The context should be detailed enough to create a variety of search queries, "  # "Контекст должен быть достаточно подробным для создания разнообразных поисковых запросов, "
-        "but focused on the main topic of the research."  # "но сфокусированным на основной теме исследования. "
-        "\n/no-think"
-        if not think
-        else ""  # "\n/no-think"
-    )
-
-
-# %%
 class QueryInterpretatorState(TypedDict):
     session: Session
     user_query: BaseMessage
@@ -63,6 +35,43 @@ class QueryInterpretatorState(TypedDict):
 
 
 # %%
+def get_context_maker_system_message(previous_context: str = "", think: bool = True):
+    message = (
+        "You are an expert in scientific research and bibliometric analysis. "  # "Ты эксперт по научным исследованиям и библиометрическому анализу. "
+        "Your task is to analyze the user query and create a detailed context "  # "Твоя задача - проанализировать пользовательский запрос, выделить главную тему и создать детальный контекст "
+        "for finding relevant scientific articles.\n\n"  # "для поиска релевантных научных статей в Google Scholar.\n\n"
+        "You no need download any articles. "  # "Ты не нужно скачивать статьи. "
+        "You only need to analyze the user query and create a detailed context "  # "Ты только нужно проанализировать пользовательский запрос и создать детальный контекст "
+        "for finding relevant scientific articles.\n\n"  # "для поиска релевантных научных статей в Google Scholar.\n\n"
+        "ANALYZE the user query and DETERMINE:\n"  # "АНАЛИЗИРУЙ запрос пользователя и ОПРЕДЕЛИ:\n"
+        "1. Main topic of the user query. "  # "1. Главную тему исследования\n"
+        "2. Main scientific field and discipline\n"  # "2. Основную научную область и дисциплину\n"
+        "3. Key terms and concepts (including synonyms and ENGLISH equivalents)\n"  # "3. Ключевые термины и понятия (включая синонимы и англоязычные эквиваленты)\n"
+        "4. Research methods that may be relevant\n"  # "4. Методы исследования, которые могут быть релевантны\n"
+        "5. Related areas of knowledge\n"  # "5. Смежные области знаний\n"
+        "6. Temporal context of research (if specified)\n"  # "6. Временной контекст исследований (если указан)\n"
+        "7. Level of research (theoretical, experimental, applied)\n\n"  # "7. Уровень исследования (теоретический, экспериментальный, прикладной)\n\n"
+        "CREATE a structured context, including:\n"  # "СОЗДАЙ структурированный контекст, включающий:\n"
+        "- Alternative formulations of terms\n"  # "- Альтернативные формулировки терминов\n"
+        "- Related concepts and areas\n"  # "- Смежные понятия и области\n"
+        "- Potential methodological approaches\n"  # "- Потенциальные методологические подходы\n"
+        "- Specific technologies or equipment (if mentioned)\n\n"  # "- Специфические технологии или оборудование (если упомянуты)\n\n"
+        "Use ENGLISH for all responses.\n"  # "Используй РУССКИЙ язык для всех ответов.\n"
+        "The context should be detailed enough to create a variety of search queries, "  # "Контекст должен быть достаточно подробным для создания разнообразных поисковых запросов, "
+        "but focused on the main topic of the research."  # "но сфокусированным на основной теме исследования. "
+    )
+    if not think:
+        message += "\n/no-think\n"
+    if previous_context:
+        message += (
+            "\n\nBelow is a context that did not work well last time. "  # "\n\nНиже приводится контекст, который плохо сработал в прошлый раз. "
+            "Improve it: expand, clarify, add new topics, remove topics that are not relevant. "  # "Его необходимо улучшить: расширить, уточнить, добавить новые темы, убрать темы которые не подходят. "
+            f"\nPREVIOUS CONTEXT: \n{previous_context}\n\n"  # f"\nPrevious context: {previous_context}\n\n"
+        )
+    return message
+
+
+# %%
 def get_structured_output_schema():
     return {
         "title": "Queries main topic and context with comment",
@@ -71,12 +80,14 @@ def get_structured_output_schema():
             "comment": {
                 "type": "string",
                 "description": "Comment to the user query. "
-                "It should be a short comment that captures the core idea of the user query.",
+                "It should be a short comment that captures the core idea of the user query."
+                "Use English for all responses.",
             },
             "main_topic": {
                 "type": "string",
                 "description": "Main topic of the user query. "
-                "It should be a single word or phrase that captures the core idea of the user query.",
+                "It should be a single word or phrase that captures the core idea of the user query."
+                "Use English for all responses.",
             },
             "context_for_queries": {
                 "type": "string",
@@ -96,8 +107,6 @@ def get_structured_output_schema():
 class WithStructuredOutputStrategy(IStrategy):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
-        self._system_message = get_context_maker_system_message(think=False)
-        self._json_schema = get_structured_output_schema()
         self._config = {
             "configurable": {
                 "thread_id": uuid.uuid4().hex,
@@ -106,23 +115,39 @@ class WithStructuredOutputStrategy(IStrategy):
 
     def __call__(self, state: QueryInterpretatorState) -> dict:
         lg = logger.bind(classname=self.__class__.__name__)
-        lg.info("start")
+        lg.trace("start")
 
+        user_query = state.get("user_query")
+        lg.debug(f"User query: {user_query.content}")
+
+        previous_context = state.get("context_for_queries")
+        lg.debug(f"Previous context: {previous_context}")
+
+        system_message = get_context_maker_system_message(
+            think=False,
+            previous_context=previous_context,
+        )
+        # lg.debug(f"System message: {system_message}")
+
+        json_schema = get_structured_output_schema()
         messages = [
-            SystemMessage(content=self._system_message),
+            SystemMessage(content=system_message),
             HumanMessage(content=state.get("user_query").content),
         ]
         structured_llm = self._llm.with_structured_output(
-            schema=self._json_schema,
+            schema=json_schema,
             method="json_schema",
         )
-        response = structured_llm.invoke(messages, config=self._config)
+        response = structured_llm.invoke(
+            messages,
+            config=self._config,
+        )
         output = {
-            "comment": response["comment"],
-            "main_topic": response["main_topic"],
-            "context_for_queries": response["context_for_queries"],
+            "comment": response.get("comment"),
+            "main_topic": response.get("main_topic"),
+            "context_for_queries": response.get("context_for_queries"),
         }
-        lg.info("end")
+        lg.trace("end")
         return output
 
 
@@ -138,13 +163,31 @@ if __name__ == "__main__":
         temperature=0.0,
         max_tokens=10000,
     )
+    # from langchain.chat_models import ChatOpenAI
+
+    # llm = ChatOpenAI(
+    #     base_url="http://localhost:7007/v1",
+    #     api_key="not_needed",
+    #     temperature=0.00,
+    # )
     user_query = HumanMessage(
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_context = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
     state_start_with_structured_output = QueryInterpretatorState(
         user_query=user_query,
-        reformulated_queries_quantity=10,
+        context_for_queries=previous_context,
+        reformulated_queries_quantity=2,
     )
     state_end_with_structured_output = WithStructuredOutputStrategy(llm)(state_start_with_structured_output)
     print("--------------------------------")
@@ -166,7 +209,22 @@ if __name__ == "__main__":
 class AgentWithResponseFormatStrategy(IStrategy):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
-        self._system_message = get_context_maker_system_message(think=False)
+
+    def __call__(self, state: QueryInterpretatorState) -> dict:
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.info("start")
+
+        user_query = state.get("user_query")
+        lg.debug(f"User query: {user_query.content}")
+
+        previous_context = state.get("context_for_queries")
+        lg.debug(f"Previous context: {previous_context}")
+
+        system_message = get_context_maker_system_message(
+            think=False,
+            previous_context=previous_context,
+        )
+        # lg.debug(f"System message: {system_message}")
 
         class AnswerResponseFormat(BaseModel):
             comment: str = Field(description="Comment to the user query")
@@ -182,7 +240,7 @@ class AgentWithResponseFormatStrategy(IStrategy):
         self._agent = create_react_agent(
             model=llm,
             tools=[],
-            prompt=self._system_message,
+            prompt=system_message,
             name="context_maker",
             response_format=AnswerResponseFormat,
             # checkpointer=InMemorySaver(),
@@ -192,14 +250,6 @@ class AgentWithResponseFormatStrategy(IStrategy):
                 "thread_id": uuid.uuid4().hex,
             },
         }
-
-    def __call__(self, state: QueryInterpretatorState) -> dict:
-        lg = logger.bind(classname=self.__class__.__name__)
-        lg.info("start")
-
-        user_query = state.get("user_query")
-        user_query = user_query if isinstance(user_query, HumanMessage) else HumanMessage(content=user_query)
-        lg.debug(f"User query: {user_query.content}")
 
         response = self._agent.invoke(
             input={"messages": [user_query]},
@@ -229,8 +279,30 @@ if __name__ == "__main__":
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_context = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
+    previous_reformulated_queries = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
     state_start_agent_with_response_format = QueryInterpretatorState(
         user_query=user_query,
+        context_for_queries=previous_context,
+        reformulated_queries=previous_reformulated_queries,
         reformulated_queries_quantity=10,
     )
     state_end_agent_with_response_format = AgentWithResponseFormatStrategy(llm)(state_start_agent_with_response_format)
@@ -283,28 +355,39 @@ def get_response_schemas():
 class ResponseSchemasStrategy(IStrategy):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
+
+    def __call__(self, state: QueryInterpretatorState) -> dict:
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+
+        user_query = state.get("user_query")
+        lg.debug(f"User query: {user_query.content}")
+
+        previous_context = state.get("context_for_queries", "")
+        lg.debug(f"Previous context: {previous_context}")
+
         response_schemas = get_response_schemas()
 
         output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
         format_instructions = output_parser.get_format_instructions()
 
-        prompt_template = get_context_maker_system_message(think=False)
+        prompt_template = get_context_maker_system_message(
+            think=False,
+            previous_context=previous_context,
+        )
         prompt_template += "\n\nUSER QUERY:\n{user_query}\n\n "
         prompt_template += "\n\nFORMAT INSTRUCTIONS:\n{format_instructions}\n\n"
-
         prompt = PromptTemplate(
             template=prompt_template,
             input_variables=["user_query"],
             partial_variables={"format_instructions": format_instructions},
         )
+        lg.debug(f"Prompt template: {prompt_template}")
+
         self._chain = prompt | self._llm | output_parser
 
-    def __call__(self, state: QueryInterpretatorState) -> dict:
-        lg = logger.bind(classname=self.__class__.__name__)
-        lg.trace("start")
-        user_query = state.get("user_query")
-        lg.debug(f"User query: {user_query}")
         user_query = user_query if isinstance(user_query, str) else user_query.content
+        lg.debug(f"User query: {user_query}")
 
         response = self._chain.invoke(
             input={"user_query": user_query},
@@ -319,32 +402,52 @@ class ResponseSchemasStrategy(IStrategy):
 
 
 if __name__ == "__main__":
-    # from langchain_ollama import ChatOllama
-    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+    import os
+    from langchain_ollama import ChatOllama
 
-    # llm = ChatOllama(
-    #     # model="qwen3:30B-a3b",
-    #     model="qwen3:32b",
-    #     # model="qwen3:14b",
-    #     # model="qwen3:8b",
-    #     temperature=0.0,
-    #     max_tokens=10000,
-    # )
-    from langchain.chat_models import ChatOpenAI
+    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
 
-    llm = ChatOpenAI(
-        base_url="http://localhost:7007/v1",
-        api_key="not_needed",
-        temperature=0.00,
+    llm = ChatOllama(
+        model="qwen3:8b",
+        temperature=0.0,
+        max_tokens=32000,
     )
+    # from langchain.chat_models import ChatOpenAI
+
+    # llm = ChatOpenAI(
+    #     base_url="http://localhost:7007/v1",
+    #     api_key="not_needed",
+    #     temperature=0.00,
+    # )
 
     user_query = HumanMessage(
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_context = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
+    previous_reformulated_queries = (
+        "Reinforcement learning in autonomous driving",
+        "Reinforcement learning and deep neural networks",
+        "Deep Q-Networks and their applications",
+        "Q-learning and SARSA algorithms",
+        "Reinforcement learning in game playing",
+        "AlphaGo and reinforcement learning",
+        "AlphaStar and deep reinforcement learning",
+    )
     context_maker_state_start = QueryInterpretatorState(
         user_query=user_query,
-        reformulated_queries_quantity=10,
+        context_for_queries="",
+        reformulated_queries=[],
+        reformulated_queries_quantity=20,
     )
     context_maker_state_end = ResponseSchemasStrategy(llm)(context_maker_state_start)
     print("--------------------------------")
@@ -361,6 +464,7 @@ if __name__ == "__main__":
 
 # %%
 class ContextMakerStrategyType(Enum):
+    # SIMPLE_INVOKE = lambda *args, **kwargs: SimpleInvokeStrategy(*args, **kwargs)  # noqa: E731
     WITH_STRUCTURED_OUTPUT = lambda *args, **kwargs: WithStructuredOutputStrategy(*args, **kwargs)  # noqa: E731
     AGENT_WITH_RESPONSE_FORMAT = lambda *args, **kwargs: AgentWithResponseFormatStrategy(*args, **kwargs)  # noqa: E731
     RESPONSE_SCHEMAS = lambda *args, **kwargs: ResponseSchemasStrategy(*args, **kwargs)  # noqa: E731
@@ -396,16 +500,14 @@ class ContextMakerNode(IWorkflowNode):
 
 
 if __name__ == "__main__":
-    from langchain_ollama import ChatOllama
-
-    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
-
-    ollama_llm = ChatOllama(
-        model="qwen3:8b",
-        temperature=0.0,
-        max_tokens=10000,
-    )
+    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+    # llm = ChatOllama(
+    #     model="qwen3:4b",
+    #     temperature=0.0,
+    #     max_tokens=10000,
+    # )
     from langchain.chat_models import ChatOpenAI
+    from langchain_ollama import ChatOllama
 
     lmstudio_llm = ChatOpenAI(
         base_url="http://localhost:7007/v1",
@@ -417,13 +519,25 @@ if __name__ == "__main__":
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_context = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
 
     context_maker_state_start = QueryInterpretatorState(
         user_query=user_query,
-        reformulated_queries_quantity=10,
+        context_for_queries=previous_context,
+        reformulated_queries=previous_reformulated_queries,
+        reformulated_queries_quantity=2,
     )
-    strategy = ContextMakerStrategyType.RESPONSE_SCHEMAS(ollama_llm)
-    node = ContextMakerNode(ollama_llm).set_strategy(strategy)
+    strategy = ContextMakerStrategyType.RESPONSE_SCHEMAS(llm)
+    node = ContextMakerNode(llm).set_strategy(strategy)
     context_maker_state_end = node(context_maker_state_start)
     print("--------------------------------")
     print("Comment:")
@@ -438,8 +552,12 @@ if __name__ == "__main__":
 
 
 # %%
-def get_query_reformulator_system_message(reformulated_queries_quantity: int, think: bool = True):
-    return (
+def get_query_reformulator_system_message(
+    reformulated_queries_quantity: int = 10,
+    previous_reformulated_queries: str = "",
+    think: bool = False,
+):
+    message = (
         "You are an expert in scientific research and bibliometric analysis. "  # "Ты специалист по поиску научной литературы в Google Scholar. "
         f"Based on the provided context, create {reformulated_queries_quantity} "  # f"На основе предоставленного контекста создай {reformulated_queries_quantity} "
         "different search queries to cover the topic as fully as possible.\n\n"  # "различных поисковых запросов для максимально полного покрытия темы.\n\n"
@@ -465,12 +583,20 @@ def get_query_reformulator_system_message(reformulated_queries_quantity: int, th
         "Do not use extra characters. "  # "Не используй лишние символы. "
         "Do not use numbering. "  # "Не используй нумерацию. "
         "Do not use quotes. "  # "Не используй кавычки. "
-        f"\n/no-think"
-        if not think
-        else ""
+        "Use English for all responses."  # "Используй английский язык для всех ответов."
     )
+    if not think:
+        message += "\n/no-think\n\n"
+    if previous_reformulated_queries:
+        message += (
+            "\n\nBelow is a previous reformulated queries that did not work well last time. "  # "\n\nНиже приводится список запросов, которые плохо сработали в прошлый раз. "
+            "Improve it: rephrase, expand, clarify, add new queries, remove queries that are not relevant. "  # "Если есть, то необходимо его улучшить: переформулировать, дополнить, уточнить. "
+            f"\nPREVIOUS REFORMULATED QUERIES: \n{previous_reformulated_queries}\n\n"  # f"\nPrevious reformulated queries: {previous_reformulated_queries}\n\n"
+        )
+    return message
 
 
+# %%
 class WithStructuredOutput2Strategy(IStrategy):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
@@ -481,6 +607,7 @@ class WithStructuredOutput2Strategy(IStrategy):
         user_query_str = state.get("user_query").content
         context_for_queries = state.get("context_for_queries")
         reformulated_queries_quantity = state.get("reformulated_queries_quantity", 10)
+        previous_reformulated_queries = state.get("reformulated_queries", [])
 
         lg.debug(f"User query: {user_query_str}")
         lg.debug(f"Context for queries: {context_for_queries}")
@@ -488,12 +615,14 @@ class WithStructuredOutput2Strategy(IStrategy):
 
         system_message = get_query_reformulator_system_message(
             reformulated_queries_quantity=reformulated_queries_quantity,
+            previous_reformulated_queries=previous_reformulated_queries,
             think=False,
         )
+        lg.debug(f"System message: {system_message}")
 
         messages = [
             SystemMessage(content=system_message),
-            AIMessage(content=f"CONTEXT for creating queries:\n{context_for_queries}\n\n"),
+            AIMessage(content=f"CONTEXT for create reformulated queries:\n{context_for_queries}\n\n"),
             HumanMessage(content=user_query_str),
         ]
         json_schema = {
@@ -527,19 +656,41 @@ class WithStructuredOutput2Strategy(IStrategy):
 
 
 if __name__ == "__main__":
+    import os
+
+    from langchain_ollama import ChatOllama
+
+    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     llm = ChatOllama(
         model="qwen3:8b",
         temperature=0.0,
         max_tokens=10000,
     )
+    # from langchain.chat_models import ChatOpenAI
+
+    # llm = ChatOpenAI(
+    #     base_url="http://localhost:7007/v1",
+    #     api_key="not_needed",
+    #     temperature=0.00,
+    # )
     user_query = HumanMessage(
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_reformulated_queries = (
+        "Reinforcement learning in autonomous driving",
+        "Reinforcement learning and deep neural networks",
+        "Deep Q-Networks and their applications",
+        "Q-learning and SARSA algorithms",
+        "Reinforcement learning in game playing",
+        "AlphaGo and reinforcement learning",
+        "AlphaStar and deep reinforcement learning",
+    )
     state_start = QueryInterpretatorState(
         user_query=user_query,
         context_for_queries=context_maker_state_end.get("context_for_queries"),
-        reformulated_queries_quantity=20,
+        reformulated_queries=previous_reformulated_queries,
+        reformulated_queries_quantity=7,
     )
     state_end = WithStructuredOutput2Strategy(llm)(state_start)
     pprint(state_end.get("reformulated_queries"))
@@ -555,12 +706,14 @@ class ResponseSchemas2Strategy(IStrategy):
         lg = logger.bind(classname=self.__class__.__name__)
         lg.trace("start")
         user_query_str = state.get("user_query").content
-        context_for_queries = state.get("context_for_queries")
+        context_for_queries = state.get("context_for_queries", "")
+        previous_reformulated_queries = state.get("reformulated_queries", [])
         reformulated_queries_quantity = state.get("reformulated_queries_quantity", 10)
 
         lg.debug(f"User query: {user_query_str}")
         lg.debug(f"Context for queries: {context_for_queries}")
         lg.debug(f"Reformulated queries quantity[wanted]: {reformulated_queries_quantity}")
+        lg.debug(f"Previous reformulated queries: {previous_reformulated_queries}")
 
         response_schemas = [
             ResponseSchema(
@@ -574,12 +727,15 @@ class ResponseSchemas2Strategy(IStrategy):
         ]
 
         prompt_template = get_query_reformulator_system_message(
+            previous_reformulated_queries=previous_reformulated_queries,
             reformulated_queries_quantity=reformulated_queries_quantity,
             think=False,
         )
         prompt_template += "\n\nUSER QUERY:\n{user_query}\n\n"
-        prompt_template += "\n\nCONTEXT for creating queries:\n{context_for_queries}\n\n"
+        prompt_template += "\n\nCONTEXT for creating reformulated queries:\n{context_for_queries}\n\n"
+        prompt_template += "\n\nREFORMULATED QUERIES QUANTITY:\n{reformulated_queries_quantity}"
         prompt_template += "\n\nFORMAT INSTRUCTIONS:\n{format_instructions}\n\n"
+        lg.debug(f"Prompt template: {prompt_template}")
 
         output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
         format_instructions = output_parser.get_format_instructions()
@@ -589,6 +745,7 @@ class ResponseSchemas2Strategy(IStrategy):
             input_variables=[
                 "user_query",
                 "context_for_queries",
+                "reformulated_queries_quantity",
             ],
             partial_variables={
                 "format_instructions": format_instructions,
@@ -600,6 +757,7 @@ class ResponseSchemas2Strategy(IStrategy):
             {
                 "user_query": user_query_str,
                 "context_for_queries": context_for_queries,
+                "reformulated_queries_quantity": reformulated_queries_quantity,
             }
         )
         lg.debug(f"Reformulated queries quantity[got]: {len(response.get('reformulated_queries'))}")
@@ -612,31 +770,44 @@ class ResponseSchemas2Strategy(IStrategy):
 
 
 if __name__ == "__main__":
-    from langchain_ollama import ChatOllama
+    # from langchain_ollama import ChatOllama
 
-    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+    # os.environ["OLLAMA_HOST"] = "http://localhost:11434"
 
-    llm = ChatOllama(
-        model="qwen3:8b",
-        temperature=0.0,
-        max_tokens=10000,
-    )
-    # from langchain.chat_models import ChatOpenAI
-
-    # llm = ChatOpenAI(
-    #     base_url="http://localhost:7007/v1",
-    #     api_key="not_needed",
-    #     temperature=0.00,
+    # llm = ChatOllama(
+    #     model="qwen3:8b",
+    #     # model="hf.co/unsloth/Qwen3-8B-128K-GGUF:Q4_K_M",
+    #     temperature=0.0,
+    #     max_tokens=64000,
     # )
+    from langchain.chat_models import ChatOpenAI
+
+    llm = ChatOpenAI(
+        base_url="http://localhost:7007/v1",
+        api_key="not_needed",
+        temperature=0.00,
+    )
 
     user_query = HumanMessage(
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_reformulated_queries = (
+        "Reinforcement learning in autonomous driving",
+        "Reinforcement learning and deep neural networks",
+        "Deep Q-Networks and their applications",
+        "Q-learning and SARSA algorithms",
+        "Reinforcement learning in game playing",
+        "AlphaGo and reinforcement learning",
+        "AlphaStar and deep reinforcement learning",
+        "Reinforcement learning in simulation environments",
+        "Reinforcement learning with Unity and MuJoCo",
+    )
     query_reformulator_state_start = QueryInterpretatorState(
         user_query=user_query,
         context_for_queries=context_maker_state_end.get("context_for_queries"),
-        reformulated_queries_quantity=20,
+        reformulated_queries=previous_reformulated_queries,
+        reformulated_queries_quantity=8,
     )
 
     query_reformulator_state_end = ResponseSchemas2Strategy(llm)(query_reformulator_state_start)
@@ -682,7 +853,7 @@ if __name__ == "__main__":
     os.environ["OLLAMA_HOST"] = "http://localhost:11434"
 
     llm = ChatOllama(
-        model="qwen3:8b",
+        model="qwen3:4b",
         temperature=0.0,
         max_tokens=10000,
     )
@@ -690,9 +861,21 @@ if __name__ == "__main__":
         content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
         "Скачай все статьи по этой теме. /no-think",
     )
+    previous_reformulated_queries = (
+        "Reinforcement learning in autonomous driving",
+        "Reinforcement learning and deep neural networks",
+        "Deep Q-Networks and their applications",
+        "Q-learning and SARSA algorithms",
+        "Reinforcement learning in game playing",
+        "AlphaGo and reinforcement learning",
+        "AlphaStar and deep reinforcement learning",
+        "Reinforcement learning in simulation environments",
+        "Reinforcement learning with Unity and MuJoCo",
+    )
     state_start_query_reformulator = QueryInterpretatorState(
         user_query=user_query,
         context_for_queries=context_maker_state_end.get("context_for_queries"),
+        reformulated_queries=previous_reformulated_queries,
         reformulated_queries_quantity=20,
     )
     node = QueryReformulatorNode(llm).set_strategy(QueryReformulatorStrategyType.RESPONSE_SCHEMAS(llm))
@@ -720,17 +903,17 @@ class QueryInterpretatorWorkflowBuilder(IWorkflowBuilder):
 
 
 if __name__ == "__main__":
+    from langchain_ollama import ChatOllama
+
+    from relepaper.config.logger import setup_logger
     from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
         DisplayMethod,
         GraphDisplayer,
     )
-    from relepaper.config.logger import setup_logger
-
-    from langchain_ollama import ChatOllama
 
     os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     llm = ChatOllama(
-        model="qwen3:8b",
+        model="qwen3:4b",
         temperature=0.0,
         max_tokens=20000,
     )
@@ -755,11 +938,32 @@ if __name__ == "__main__":
         "Скачай все статьи по этой теме. /no-think",
     )
 
+    previous_context = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
+    previous_reformulated_queries = (
+        "Reinforcement learning in autonomous driving",
+        "Reinforcement learning and deep neural networks",
+        "Deep Q-Networks and their applications",
+        "Q-learning and SARSA algorithms",
+        "Reinforcement learning in game playing",
+        "AlphaGo and reinforcement learning",
+        "AlphaStar and deep reinforcement learning",
+        "Reinforcement learning in simulation environments",
+        "Reinforcement learning with Unity and MuJoCo",
+    )
     state_start = QueryInterpretatorState(
         user_query=user_query,
-        context_for_queries="",
-        reformulated_queries=[],
-        reformulated_queries_quantity=50,
+        context_for_queries=previous_context,
+        reformulated_queries=previous_reformulated_queries,
+        reformulated_queries_quantity=10,
     )
     config = {
         "configurable": {
@@ -790,13 +994,13 @@ if __name__ == "__main__":
 # %%
 
 if __name__ == "__main__":
+    from langchain_ollama import ChatOllama
+
+    from relepaper.config.logger import setup_logger
     from relepaper.domains.langgraph.workflows.utils.graph_displayer import (
         DisplayMethod,
         GraphDisplayer,
     )
-    from relepaper.config.logger import setup_logger
-
-    from langchain_ollama import ChatOllama
 
     os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     llm = ChatOllama(
