@@ -1,7 +1,6 @@
 # %%
 import operator
 import uuid
-from pathlib import Path
 from pprint import pprint
 from typing import Annotated, Sequence, TypedDict
 
@@ -11,6 +10,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
+from relepaper.config.constants import PROJECT_PATH
 from relepaper.domains.langgraph.entities.relevance_decision import Threshold
 from relepaper.domains.langgraph.entities.session import Session
 from relepaper.domains.langgraph.interfaces import (
@@ -121,7 +121,7 @@ class OpenAlexDownloadSubgraph(IWorkflowNode):
     ):
         if works_save_service is None:
             works_save_service = OpenAlexWorksSaveService(
-                repository=OnFileSystemWorksRepository(Path().cwd() / ".data" / "openalex_works"),
+                repository=OnFileSystemWorksRepository(PROJECT_PATH / "data" / "openalex_works"),
             )
         if works_search_service is None:
             works_search_service = OpenAlexWorksSearchService(
@@ -136,8 +136,9 @@ class OpenAlexDownloadSubgraph(IWorkflowNode):
             )
         if download_pdfs_service is None:
             download_pdfs_service = OpenAlexPdfDownloadService(
-                strategy=PDFDownloadStrategy("selenium"),
-                dirname=Path().cwd() / ".data" / "openalex_pdfs",
+                # strategy=PDFDownloadStrategy("selenium"),
+                strategy=PDFDownloadStrategy("selenium_stealth"),
+                dirname=PROJECT_PATH / "data" / "openalex_pdfs",
             )
         if workflow_builder is None:
             workflow_builder = OpenAlexDownloadWorkflowBuilder(
@@ -376,11 +377,7 @@ if __name__ == "__main__":
     # )
 
     user_query = HumanMessage(
-        content=(
-            "Я пишу диссертацию по теме: Обучение с подкреплением. Обучение в офлайн-режиме. "
-            "Скачай все статьи по этой теме. "
-            "/no-think"
-        ),
+        content=("Я пишу диссертацию по теме: Физика ядерного синтеза. Скачай все статьи по этой теме. /no-think"),
     )
     session = Session()
 
@@ -397,7 +394,7 @@ if __name__ == "__main__":
             user_query=None,
             main_topic="",
             context_for_queries="",
-            reformulated_queries_quantity=2,
+            reformulated_queries_quantity=5,
             reformulated_queries=[],
             comment=None,
         ),
@@ -406,7 +403,7 @@ if __name__ == "__main__":
             reformulated_queries=[],
             works=[],
             pdfs=[],
-            per_page_works=3,
+            per_page_works=5,
             timeout=60,
         ),
         relevance_evaluator_state=RelevanceEvaluatorState(
@@ -431,7 +428,7 @@ if __name__ == "__main__":
             session=None,
             relevance_scores=[],
             mean_score_overall_pdfs=None,
-            decision_threshold=Threshold(90),
+            decision_threshold=Threshold(80),
             relevance_decision=None,
         ),
         repeater_state=RepeaterState(

@@ -6,7 +6,7 @@ from pprint import pprint
 from typing import List, TypedDict
 
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
-from langchain.schema import AIMessage, SystemMessage
+from langchain.schema import SystemMessage
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, START, StateGraph
@@ -587,9 +587,9 @@ class StructuredOutputChunksMetadataExtractStrategy(IStrategy):
         )
         pdf_chunks_metadata_extracted = []
         for pdf_chunk in pdf_chunks:
+            system_prompt += f"PDF CONTENT:\n{pdf_chunk.text}\n\n"
             messages = [
                 SystemMessage(content=system_prompt),
-                AIMessage(content=f"PDF CONTENT:\n{pdf_chunk.text}\n\n"),
             ]
             response = structured_llm.invoke(
                 messages,

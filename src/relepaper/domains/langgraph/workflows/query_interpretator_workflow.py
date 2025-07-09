@@ -158,8 +158,7 @@ if __name__ == "__main__":
 
     os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     llm = ChatOllama(
-        # model="qwen3:32b",
-        model="qwen3:8b",
+        model="qwen3:32b",
         temperature=0.0,
         max_tokens=10000,
     )
@@ -269,8 +268,7 @@ if __name__ == "__main__":
 
     os.environ["OLLAMA_HOST"] = "http://localhost:11434"
     llm = ChatOllama(
-        # model="qwen3:32b",
-        model="qwen3:8b",
+        model="qwen3:32b",
         temperature=0.0,
         max_tokens=10000,
     )
@@ -403,12 +401,13 @@ class ResponseSchemasStrategy(IStrategy):
 
 if __name__ == "__main__":
     import os
+
     from langchain_ollama import ChatOllama
 
     os.environ["OLLAMA_HOST"] = "http://localhost:11434"
 
     llm = ChatOllama(
-        model="qwen3:8b",
+        model="qwen3:32b",
         temperature=0.0,
         max_tokens=32000,
     )
@@ -463,17 +462,137 @@ if __name__ == "__main__":
 
 
 # %%
+class ContextMakerSimpleInvokeStrategy(IStrategy):
+    def __init__(self, llm: BaseChatModel):
+        self._llm = llm
+        self._config = {
+            "configurable": {
+                "thread_id": uuid.uuid4().hex,
+            },
+        }
+
+    def __call__(self, state: QueryInterpretatorState) -> dict:
+        lg = logger.bind(classname=self.__class__.__name__)
+        lg.trace("start")
+
+        user_query = state.get("user_query")
+        user_query = user_query.content if isinstance(user_query, BaseMessage) else user_query
+        lg.debug(f"User query: {user_query}")
+
+        previous_context = state.get("context_for_queries", "")
+        lg.debug(f"Previous context: {previous_context}")
+
+        # previous_reformulated_queries = state.get("reformulated_queries", [])
+        # lg.debug(f"Previous reformulated queries: {previous_reformulated_queries}")
+
+        prompt_template = get_context_maker_system_message(
+            think=False,
+            previous_context="{previous_context}",
+            # previous_reformulated_queries=previous_reformulated_queries,
+            # user_query=user_query,
+        )
+        prompt_template += "\n\nUSER QUERY:\n{user_query}\n\n "
+        prompt = PromptTemplate(
+            template=prompt_template,
+            input_variables=["user_query"],
+            partial_variables={
+                "previous_context": previous_context,
+                # "previous_reformulated_queries": previous_reformulated_queries,
+                # "user_query": user_query,
+            },
+        )
+        lg.debug(f"Prompt: {prompt.template}")
+
+        response_from_llm = self._llm.invoke(
+            prompt.template,
+            config=self._config,
+        )
+        lg.debug(f"Response from LLM: {response_from_llm.content}")
+
+        output = {
+            "comment": None,
+            "main_topic_of_user_query": None,
+            "context_for_queries": response_from_llm.content,
+        }
+        lg.trace("end")
+        return output
+
+
+if __name__ == "__main__":
+    import os
+
+    from langchain_ollama import ChatOllama
+
+    os.environ["OLLAMA_HOST"] = "http://localhost:11434"
+
+    llm = ChatOllama(
+        model="qwen3:32b",
+        temperature=0.0,
+        max_tokens=32000,
+    )
+    # from langchain.chat_models import ChatOpenAI
+
+    # llm = ChatOpenAI(
+    #     base_url="http://localhost:7007/v1",
+    #     api_key="not_needed",
+    #     temperature=0.00,
+    # )
+
+    user_query = HumanMessage(
+        content="Я пишу диссертацию по теме: Машинное обучение. Обучение с подкреплением. "
+        "Скачай все статьи по этой теме. /no-think",
+    )
+    previous_context = (
+        "Reinforcement Learning (RL) - is a field of machine learning where an agent learns "
+        "to make decisions by interacting with an environment to maximize a reward. "
+        "The main concepts include: agent, environment, actions, rewards, policies, value functions, "
+        "and learning algorithms. "
+        "The main algorithms include Q-learning, SARSA, Deep Q-Networks (DQN), Policy Gradients, "
+        "Actor-Critic methods, and modern approaches such as Proximal Policy Optimization (PPO), "
+        "Trust Region Policy Optimization (TRPO), and tensor-based algorithms such as Deep Deterministic "
+        "Policy Gradient (DDPG) and Twin Delayed Deep Deterministic Policy Gradient (TD3)."
+    )
+    previous_reformulated_queries = (
+        "Reinforcement learning in autonomous driving",
+        "Reinforcement learning and deep neural networks",
+        "Deep Q-Networks and their applications",
+        "Q-learning and SARSA algorithms",
+        "Reinforcement learning in game playing",
+        "AlphaGo and reinforcement learning",
+        "AlphaStar and deep reinforcement learning",
+    )
+
+    state_start_simple_invoke = QueryInterpretatorState(
+        user_query=user_query,
+        context_for_queries=None,
+        reformulated_queries=None,
+    )
+    state_end_simple_invoke = ContextMakerSimpleInvokeStrategy(llm)(state_start_simple_invoke)
+    print("--------------------------------")
+    print("Comment:")
+    pprint(state_end_simple_invoke.get("comment"))
+    print("--------------------------------")
+    print("Main topic of user query:")
+    pprint(state_end_simple_invoke.get("main_topic_of_user_query"))
+    print("--------------------------------")
+    print("Context for queries:")
+    pprint(state_end_simple_invoke.get("context_for_queries"))
+    print("--------------------------------")
+
+
+# %%
 class ContextMakerStrategyType(Enum):
-    # SIMPLE_INVOKE = lambda *args, **kwargs: SimpleInvokeStrategy(*args, **kwargs)  # noqa: E731
     WITH_STRUCTURED_OUTPUT = lambda *args, **kwargs: WithStructuredOutputStrategy(*args, **kwargs)  # noqa: E731
     AGENT_WITH_RESPONSE_FORMAT = lambda *args, **kwargs: AgentWithResponseFormatStrategy(*args, **kwargs)  # noqa: E731
     RESPONSE_SCHEMAS = lambda *args, **kwargs: ResponseSchemasStrategy(*args, **kwargs)  # noqa: E731
+    SIMPLE_INVOKE = lambda *args, **kwargs: ContextMakerSimpleInvokeStrategy(*args, **kwargs)  # noqa: E731
+    DEFAULT = WITH_STRUCTURED_OUTPUT
 
 
 class ContextMakerNode(IWorkflowNode):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
-        self._strategy = ContextMakerStrategyType.RESPONSE_SCHEMAS(llm)
+        self._strategy = ContextMakerStrategyType.DEFAULT(llm)
 
     def set_strategy(self, strategy: IStrategy):
         self._strategy = strategy
@@ -818,12 +937,13 @@ if __name__ == "__main__":
 class QueryReformulatorStrategyType(Enum):
     WITH_STRUCTURED_OUTPUT = lambda *args, **kwargs: WithStructuredOutput2Strategy(*args, **kwargs)  # noqa: E731
     RESPONSE_SCHEMAS = lambda *args, **kwargs: ResponseSchemas2Strategy(*args, **kwargs)  # noqa: E731
+    DEFAULT = WITH_STRUCTURED_OUTPUT
 
 
 class QueryReformulatorNode(IWorkflowNode):
     def __init__(self, llm: BaseChatModel):
         self._llm = llm
-        self._strategy = QueryReformulatorStrategyType.RESPONSE_SCHEMAS(llm)
+        self._strategy = QueryReformulatorStrategyType.DEFAULT(llm)
 
     def set_strategy(self, strategy: IStrategy):
         self._strategy = strategy
@@ -878,7 +998,7 @@ if __name__ == "__main__":
         reformulated_queries=previous_reformulated_queries,
         reformulated_queries_quantity=20,
     )
-    node = QueryReformulatorNode(llm).set_strategy(QueryReformulatorStrategyType.RESPONSE_SCHEMAS(llm))
+    node = QueryReformulatorNode(llm).set_strategy(QueryReformulatorStrategyType.WITH_STRUCTURED_OUTPUT(llm))
     state_end_query_reformulator = node(state_start_query_reformulator)
     pprint(state_end_query_reformulator.get("reformulated_queries"))
 
